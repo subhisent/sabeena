@@ -1,43 +1,101 @@
-import * as Notifications from 'expo-notifications';
+import Constants, { ExecutionEnvironment } from 'expo-constants';
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// Configure default notification presentation behavior
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-    shouldShowBanner: true,
-    shouldShowList: true,
-  }),
-});
+/**
+ * Check if the application is currently running inside the Expo Go store client.
+ * In Expo SDK 53+, remote push notification registration is not supported inside Expo Go on Android.
+ */
+export const isRunningInExpoGo =
+  Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
+
+let notificationsModule: typeof import('expo-notifications') | null = null;
+let isHandlerConfigured = false;
+
+function getNotifications(): typeof import('expo-notifications') | null {
+  if (Platform.OS === 'web') return null;
+  if (!notificationsModule) {
+    try {
+      notificationsModule = require('expo-notifications');
+      if (notificationsModule && !isHandlerConfigured) {
+        notificationsModule.setNotificationHandler({
+          handleNotification: async () => ({
+            shouldShowAlert: true,
+            shouldPlaySound: true,
+            shouldSetBadge: true,
+            shouldShowBanner: true,
+            shouldShowList: true,
+          }),
+        });
+        isHandlerConfigured = true;
+      }
+    } catch (e) {
+      console.warn('[Notifications] expo-notifications not available in current environment:', e);
+      return null;
+    }
+  }
+  return notificationsModule;
+}
 
 const PERMISSION_REQUESTED_KEY = 'SABENA_NOTIF_PERMISSION_ASKED';
 const NOTIFICATION_MAP_KEY = 'SABENA_SCHEDULED_NOTIFS';
+const NOTIFICATION_CHANNEL_ID = 'sabena-crm-followups';
+
+/**
+ * Configure Android notification channel (required for Android 8.0+)
+ */
+export async function setupNotificationChannelAsync(): Promise<void> {
+  if (Platform.OS === 'android') {
+    try {
+      const notifs = getNotifications();
+      if (!notifs) return;
+      await notifs.setNotificationChannelAsync(NOTIFICATION_CHANNEL_ID, {
+        name: 'Follow-up Reminders',
+        importance: notifs.AndroidImportance.MAX,
+        vibrationPattern: [0, 250, 250, 250],
+        lightColor: '#2563EB',
+        sound: 'default',
+        enableVibrate: true,
+        showBadge: true,
+      });
+    } catch (err) {
+      console.warn('Could not configure Android notification channel:', err);
+    }
+  }
+}
 
 /**
  * Ask for notification permissions on first launch or when requested.
+ * Safe to call both in Expo Go and in development builds.
  */
 export async function requestNotificationPermissionOnLaunch(): Promise<boolean> {
   if (Platform.OS === 'web') return false;
 
   try {
-    const hasAsked = await AsyncStorage.getItem(PERMISSION_REQUESTED_KEY);
-    const settings = await Notifications.getPermissionsAsync();
+    const notifs = getNotifications();
+    if (!notifs) return false;
 
-    if (settings.granted || settings.ios?.status === Notifications.IosAuthorizationStatus.AUTHORIZED) {
+    await setupNotificationChannelAsync();
+
+    const hasAsked = await AsyncStorage.getItem(PERMISSION_REQUESTED_KEY);
+    const settings = await notifs.getPermissionsAsync();
+
+    if (
+      settings.granted ||
+      settings.ios?.status === notifs.IosAuthorizationStatus.AUTHORIZED
+    ) {
       return true;
     }
 
     if (!hasAsked || settings.canAskAgain) {
       await AsyncStorage.setItem(PERMISSION_REQUESTED_KEY, 'true');
-      const { status } = await Notifications.requestPermissionsAsync({
+      const { status } = await notifs.requestPermissionsAsync({
         ios: {
           allowAlert: true,
           allowBadge: true,
           allowSound: true,
         },
+        android: {},
       });
       return status === 'granted';
     }
@@ -50,8 +108,45 @@ export async function requestNotificationPermissionOnLaunch(): Promise<boolean> 
 }
 
 /**
- * Helper to get tracked notification IDs map
+ * Registers device for remote push notifications.
+ * Automatically bypassed when running inside Expo Go to prevent SDK 53+ runtime errors.
  */
+export async function registerForPushNotificationsAsync(): Promise<string | null> {
+  if (Platform.OS === 'web') return null;
+
+  if (isRunningInExpoGo) {
+    console.info(
+      '[Notifications] Running inside Expo Go: Remote push notification tokens require a development build (expo-dev-client). Local reminder notifications are active.'
+    );
+    return null;
+  }
+
+  try {
+    const notifs = getNotifications();
+    if (!notifs) return null;
+
+    await setupNotificationChannelAsync();
+
+    const { status: existingStatus } = await notifs.getPermissionsAsync();
+    let finalStatus = existingStatus;
+
+    if (existingStatus !== 'granted') {
+      const { status } = await notifs.requestPermissionsAsync();
+      finalStatus = status;
+    }
+
+    if (finalStatus !== 'granted') {
+      return null;
+    }
+
+    const tokenData = await notifs.getExpoPushTokenAsync();
+    return tokenData.data;
+  } catch (err) {
+    console.warn('Failed to get push token for development build:', err);
+    return null;
+  }
+}
+
 async function getNotificationMap(): Promise<Record<string, string>> {
   try {
     const raw = await AsyncStorage.getItem(NOTIFICATION_MAP_KEY);
@@ -61,9 +156,6 @@ async function getNotificationMap(): Promise<Record<string, string>> {
   }
 }
 
-/**
- * Helper to save tracked notification IDs map
- */
 async function saveNotificationMap(map: Record<string, string>): Promise<void> {
   try {
     await AsyncStorage.setItem(NOTIFICATION_MAP_KEY, JSON.stringify(map));
@@ -85,6 +177,11 @@ export async function scheduleFollowUpNotification(
   if (Platform.OS === 'web') return null;
 
   try {
+    const notifs = getNotifications();
+    if (!notifs) return null;
+
+    await setupNotificationChannelAsync();
+
     // 1. Cancel existing notification if already scheduled
     await cancelFollowUpNotification(leadId);
 
@@ -98,14 +195,14 @@ export async function scheduleFollowUpNotification(
 
     // Target is 15 minutes (900,000 ms) before follow-up
     const fifteenMinutesBefore = followUpTime - 15 * 60 * 1000;
-    const triggerTime = fifteenMinutesBefore > now ? fifteenMinutesBefore : now + 5000; // if within 15 min, alert in 5 seconds
+    const triggerTime = fifteenMinutesBefore > now ? fifteenMinutesBefore : now + 5000;
 
     const formattedTime = followUpDate.toLocaleTimeString('en-IN', {
       hour: '2-digit',
       minute: '2-digit',
     });
 
-    const notifId = await Notifications.scheduleNotificationAsync({
+    const notifId = await notifs.scheduleNotificationAsync({
       content: {
         title: `Follow-up in 15 mins: ${customerName}`,
         body: `Scheduled at ${formattedTime}${phone ? ` · ${phone}` : ''}`,
@@ -113,8 +210,9 @@ export async function scheduleFollowUpNotification(
         sound: true,
       },
       trigger: {
-        type: Notifications.SchedulableTriggerInputTypes.DATE,
+        type: notifs.SchedulableTriggerInputTypes.DATE,
         date: new Date(triggerTime),
+        channelId: Platform.OS === 'android' ? NOTIFICATION_CHANNEL_ID : undefined,
       },
     });
 
@@ -137,11 +235,14 @@ export async function cancelFollowUpNotification(leadId: string): Promise<void> 
   if (Platform.OS === 'web') return;
 
   try {
+    const notifs = getNotifications();
+    if (!notifs) return;
+
     const map = await getNotificationMap();
     const existingNotifId = map[leadId];
 
     if (existingNotifId) {
-      await Notifications.cancelScheduledNotificationAsync(existingNotifId);
+      await notifs.cancelScheduledNotificationAsync(existingNotifId);
       delete map[leadId];
       await saveNotificationMap(map);
     }

@@ -1,0 +1,52 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() { return request.auth != null; }
+    function profile() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+    function hasProfile() {
+      return signedIn() &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+    function isAdmin() {
+      return hasProfile() && profile().active == true && profile().role == 'admin';
+    }
+    function isStaff() {
+      return hasProfile() && profile().active == true && profile().role == 'staff';
+    }
+
+    match /users/{uid} {
+      allow read: if signedIn() && (request.auth.uid == uid || isAdmin());
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /customers/{id} {
+      allow read: if isAdmin() ||
+        (isStaff() && resource.data.assignedTo == request.auth.uid);
+      allow create, delete: if isAdmin();
+      allow update: if isAdmin() ||
+        (isStaff() && resource.data.assignedTo == request.auth.uid &&
+         request.resource.data.diff(resource.data).affectedKeys()
+           .hasOnly(['status', 'updatedAt']));
+    }
+
+    match /tasks/{id} {
+      allow read: if isAdmin() ||
+        (isStaff() && resource.data.assignedTo == request.auth.uid);
+      allow create, delete: if isAdmin();
+      allow update: if isAdmin() ||
+        (isStaff() && resource.data.assignedTo == request.auth.uid &&
+         request.resource.data.diff(resource.data).affectedKeys()
+           .hasOnly(['status', 'outcome', 'lastRemarks', 'nextFollowUp', 'updatedAt']));
+    }
+
+    match /interactions/{id} {
+      allow read: if isAdmin() ||
+        (isStaff() && resource.data.staffId == request.auth.uid);
+      allow create: if isStaff() && request.resource.data.staffId == request.auth.uid;
+      allow update, delete: if false;
+    }
+  }
+}

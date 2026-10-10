@@ -1,41 +1,55 @@
 import React from 'react';
-import { View, ActivityIndicator, StyleSheet, Text } from 'react-native';
+import { View, StyleSheet, Text } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { DevLoginScreen } from '../screens/auth/DevLoginScreen';
 import { AdminNavigator } from './AdminNavigator';
 import { StaffNavigator } from './StaffNavigator';
 import { theme } from '../theme';
-import { AppButton, Card } from '../components';
+import { AppButton, Card, LoadingView } from '../components';
 
 export const RootNavigator: React.FC = () => {
-  const { user, loading, signOut } = useAuth();
+  const { user, profile, role, loading, accountError, signOut } = useAuth();
 
   if (loading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={theme.colors.primary} />
-      </View>
-    );
+    return <LoadingView message="Verifying authentication..." />;
   }
 
   if (!user) {
     return <DevLoginScreen />;
   }
 
-  if (user.role === 'admin') {
+  if (accountError) {
+    return (
+      <View style={styles.fallbackContainer}>
+        <Card style={styles.card} padding="xl">
+          <Text style={styles.title}>Account Issue</Text>
+          <Text style={styles.message}>{accountError}</Text>
+          <AppButton
+            title="Sign Out"
+            onPress={signOut}
+            variant="danger"
+            size="md"
+            style={styles.button}
+          />
+        </Card>
+      </View>
+    );
+  }
+
+  if (role === 'admin') {
     return <AdminNavigator />;
   }
 
-  if (user.role === 'staff') {
+  if (role === 'staff') {
     return <StaffNavigator />;
   }
 
   return (
     <View style={styles.fallbackContainer}>
       <Card style={styles.card} padding="xl">
-        <Text style={styles.title}>Account Pending</Text>
+        <Text style={styles.title}>Role Unassigned</Text>
         <Text style={styles.message}>
-          Your account role ({user.role || 'none'}) is not recognized. Please contact an admin.
+          Your account ({profile?.email || user.email}) is not yet assigned an active role. Please contact an administrator.
         </Text>
         <AppButton
           title="Sign Out"
@@ -50,12 +64,6 @@ export const RootNavigator: React.FC = () => {
 };
 
 const styles = StyleSheet.create({
-  loadingContainer: {
-    flex: 1,
-    backgroundColor: theme.colors.background,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
   fallbackContainer: {
     flex: 1,
     backgroundColor: theme.colors.background,

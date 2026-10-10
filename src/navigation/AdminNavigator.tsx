@@ -1,81 +1,86 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { useAuth } from '../context/AuthContext';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { Feather } from '@expo/vector-icons';
 import { theme } from '../theme';
-import { AppButton, Card, Avatar } from '../components';
+import { AdminDashboardScreen } from '../screens/admin/AdminDashboardScreen';
+import { AdminCustomersScreen } from '../screens/admin/AdminCustomersScreen';
+import { AdminStaffScreen } from '../screens/admin/AdminStaffScreen';
+import { AdminTasksScreen } from '../screens/admin/AdminTasksScreen';
 
-const Stack = createNativeStackNavigator();
-
-const AdminHomeScreen: React.FC = () => {
-  const { user, signOut } = useAuth();
-
-  return (
-    <View style={styles.container}>
-      <Card style={styles.card} padding="xl">
-        <Avatar name={user?.name || 'Admin'} size="lg" style={styles.avatar} />
-        <Text style={styles.title}>Admin app</Text>
-        <Text style={styles.subtitle}>Welcome, {user?.name || 'Administrator'}</Text>
-        <Text style={styles.info}>Role: {user?.role}</Text>
-        <AppButton
-          title="Sign Out"
-          onPress={signOut}
-          variant="danger"
-          size="md"
-          style={styles.button}
-        />
-      </Card>
-    </View>
-  );
+export type AdminTabParamList = {
+  Dashboard: undefined;
+  Customers: undefined;
+  Staff: undefined;
+  Tasks: undefined;
 };
+
+const Tab = createBottomTabNavigator<AdminTabParamList>();
 
 export const AdminNavigator: React.FC = () => {
   return (
-    <Stack.Navigator
+    <Tab.Navigator
       screenOptions={{
-        headerStyle: { backgroundColor: theme.colors.card },
-        headerTintColor: theme.colors.text,
-        headerTitleStyle: { fontFamily: theme.fonts.bold },
+        headerStyle: {
+          backgroundColor: theme.colors.card,
+          elevation: 0,
+          shadowOpacity: 0,
+          borderBottomWidth: 1,
+          borderBottomColor: theme.colors.border,
+        },
+        headerTitleStyle: {
+          fontFamily: theme.fonts.bold,
+          fontSize: 18,
+          color: theme.colors.text,
+        },
+        tabBarStyle: {
+          backgroundColor: theme.colors.card,
+          borderTopColor: theme.colors.border,
+          height: 60,
+          paddingBottom: 8,
+          paddingTop: 8,
+        },
+        tabBarActiveTintColor: theme.colors.primary,
+        tabBarInactiveTintColor: theme.colors.muted,
+        tabBarLabelStyle: {
+          fontFamily: theme.fonts.medium,
+          fontSize: 12,
+        },
       }}
     >
-      <Stack.Screen
-        name="AdminHome"
-        component={AdminHomeScreen}
-        options={{ title: 'Admin Dashboard' }}
+      <Tab.Screen
+        name="Dashboard"
+        component={AdminDashboardScreen}
+        options={{
+          title: 'Dashboard',
+          tabBarIcon: ({ color, size }) => <Feather name="grid" size={size} color={color} />,
+        }}
       />
-    </Stack.Navigator>
+      <Tab.Screen
+        name="Customers"
+        component={AdminCustomersScreen}
+        options={{
+          title: 'Customers',
+          tabBarIcon: ({ color, size }) => <Feather name="users" size={size} color={color} />,
+        }}
+      />
+      <Tab.Screen
+        name="Staff"
+        component={AdminStaffScreen}
+        options={{
+          title: 'Staff',
+          tabBarIcon: ({ color, size }) => <Feather name="user-check" size={size} color={color} />,
+        }}
+      />
+      <Tab.Screen
+        name="Tasks"
+        component={AdminTasksScreen}
+        options={{
+          title: 'Tasks',
+          tabBarIcon: ({ color, size }) => <Feather name="check-square" size={size} color={color} />,
+        }}
+      />
+    </Tab.Navigator>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: theme.colors.background,
-    justifyContent: 'center',
-    padding: theme.spacing.lg,
-  },
-  card: {
-    alignItems: 'center',
-  },
-  avatar: {
-    marginBottom: theme.spacing.md,
-  },
-  title: {
-    ...theme.typography.h1,
-    marginBottom: theme.spacing.xs,
-  },
-  subtitle: {
-    ...theme.typography.headline,
-    color: theme.colors.primary,
-    marginBottom: theme.spacing.xs,
-  },
-  info: {
-    ...theme.typography.caption,
-    marginBottom: theme.spacing.xl,
-  },
-  button: {
-    minWidth: 160,
-  },
-});
 
 export default AdminNavigator;

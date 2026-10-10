@@ -1,9 +1,9 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
 // @ts-ignore: getReactNativePersistence is provided by Firebase Auth in React Native environment
-import { initializeAuth, getReactNativePersistence, getAuth, Auth } from 'firebase/auth';
+import { initializeAuth, getReactNativePersistence, getAuth } from 'firebase/auth';
+import ReactNativeAsyncStorage from '@react-native-async-storage/async-storage';
 import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const firebaseConfig = {
   apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
@@ -14,18 +14,17 @@ const firebaseConfig = {
   appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID,
 };
 
-const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-
-let auth: Auth;
-try {
-  auth = initializeAuth(app, {
-    persistence: getReactNativePersistence(AsyncStorage),
-  });
-} catch {
-  auth = getAuth(app);
+if (!firebaseConfig.apiKey) {
+  console.error('Firebase env vars missing. Check .env and restart with: npx expo start -c');
 }
 
-const db = getFirestore(app);
-const storage = getStorage(app);
+const isNew = getApps().length === 0;
+const app = isNew ? initializeApp(firebaseConfig) : getApp();
 
-export { app, auth, db, storage };
+export const auth = isNew
+  ? initializeAuth(app, { persistence: getReactNativePersistence(ReactNativeAsyncStorage) })
+  : getAuth(app);
+
+export const db = getFirestore(app);
+export const storage = getStorage(app);
+export { app };

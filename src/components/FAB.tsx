@@ -18,19 +18,20 @@ export interface FABProps {
 }
 
 export const FAB: React.FC<FABProps> = ({
-  label = 'New lead',
+  label,
   iconName = 'plus',
   onPress,
   style,
 }) => {
+  const isRound = !label;
   return (
     <TouchableOpacity
       onPress={onPress}
       activeOpacity={0.85}
-      style={[styles.container, style]}
+      style={[styles.container, isRound && styles.roundContainer, style]}
     >
-      <View style={styles.iconCircle}>
-        <Feather name={iconName} size={18} color={theme.colors.white} />
+      <View style={[styles.iconCircle, isRound && styles.roundIconCircle]}>
+        <Feather name={iconName} size={isRound ? 24 : 18} color={theme.colors.white} />
       </View>
       {label ? <Text style={styles.label}>{label}</Text> : null}
     </TouchableOpacity>
@@ -48,10 +49,22 @@ const styles = StyleSheet.create({
     ...theme.shadows.elevated,
     alignSelf: 'center',
   },
+  roundContainer: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    paddingVertical: 0,
+    paddingHorizontal: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   iconCircle: {
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 8,
+  },
+  roundIconCircle: {
+    marginRight: 0,
   },
   label: {
     fontFamily: theme.fonts.semiBold,

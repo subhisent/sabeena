@@ -31,7 +31,18 @@ export const DevLoginScreen: React.FC = () => {
       await signIn(identifier, password);
     } catch (error: any) {
       console.error('DevLogin error:', error);
-      setErrorMessage(error?.message || 'Failed to sign in. Please verify your credentials.');
+      const code = error?.code;
+      if (code === 'auth/invalid-credential' || code === 'auth/user-not-found' || code === 'auth/wrong-password') {
+        setErrorMessage('Incorrect email/password, or user does not exist in Firebase Auth.');
+      } else if (code === 'auth/invalid-email') {
+        setErrorMessage('The email address is badly formatted.');
+      } else if (code === 'auth/too-many-requests') {
+        setErrorMessage('Access blocked temporarily due to many failed login attempts. Try again later.');
+      } else if (code === 'auth/network-request-failed') {
+        setErrorMessage('Network error. Check your internet connection.');
+      } else {
+        setErrorMessage(error?.message || 'Failed to sign in. Please check your credentials.');
+      }
     } finally {
       setIsLoading(false);
     }
