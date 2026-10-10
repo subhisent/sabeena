@@ -15,7 +15,17 @@ export const colors = {
   warningLight: '#FEF3C7',
   danger: '#DC2626',
   dangerLight: '#FEE2E2',
+  purple: '#7C3AED',
+  purpleLight: '#F5F3FF',
+  segmentBackground: '#F1F5F9',
   inputBackground: '#FFFFFF',
+  status: {
+    new: { bg: '#EFF6FF', text: '#2563EB', dot: '#2563EB' },
+    inProgress: { bg: '#FEF3C7', text: '#D97706', dot: '#D97706' },
+    followUp: { bg: '#F5F3FF', text: '#7C3AED', dot: '#7C3AED' },
+    won: { bg: '#DCFCE7', text: '#16A34A', dot: '#16A34A' },
+    lost: { bg: '#F1F5F9', text: '#64748B', dot: '#64748B' },
+  },
 };
 
 export const fonts = {

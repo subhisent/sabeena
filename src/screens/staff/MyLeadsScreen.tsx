@@ -6,369 +6,339 @@ import {
   FlatList,
   ScrollView,
   TouchableOpacity,
-  Alert,
+  RefreshControl,
+  ActivityIndicator,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import * as Linking from 'expo-linking';
 import { Feather } from '@expo/vector-icons';
+
 import { theme } from '../../theme';
 import { useMyLeads } from '../../hooks';
-import { Lead, LeadStatus, LeadPriority } from '../../types';
-import {
-  ScreenHeader,
-  SearchBar,
-  Chip,
-  Card,
-  Avatar,
-  EmptyState,
-} from '../../components';
+import { Lead, LeadStatus } from '../../types';
+import { SearchBar, FAB, Avatar } from '../../components';
 
-export type FilterType = 'All' | 'New' | 'In Progress' | 'Won' | 'Lost' | 'Overdue';
+export type FilterCategory = 'All' | 'New' | 'In Progress' | 'Follow-up' | 'Won' | 'Lost';
 
 export const MyLeadsScreen: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<any>>();
-  const { leads, loading } = useMyLeads();
-  const [search, setSearch] = useState('');
-  const [selectedFilter, setSelectedFilter] = useState<FilterType>('All');
+  const { leads, loading, error } = useMyLeads();
 
-  // Helper to determine if a lead is overdue
-  const isLeadOverdue = (lead: Lead): boolean => {
-    if (lead.status === 'Won' || lead.status === 'Lost') return false;
-    if (!lead.followUpAt) return false;
-    return lead.followUpAt.toMillis() < Date.now();
-  };
+  const [search, setSearch] = useState<string>('');
+  const [selectedFilter, setSelectedFilter] = useState<FilterCategory>('All');
+  const [refreshing, setRefreshing] = useState<boolean>(false);
 
-  // Live count computations for each filter category
+  // Compute live category counts
   const filterCounts = useMemo(() => {
-    const counts: Record<FilterType, number> = {
+    const counts: Record<FilterCategory, number> = {
       All: leads.length,
       New: 0,
       'In Progress': 0,
+      'Follow-up': 0,
       Won: 0,
       Lost: 0,
-      Overdue: 0,
     };
 
     leads.forEach((l) => {
       if (l.status === 'New Lead') counts.New += 1;
-      if (l.status === 'In Progress') counts['In Progress'] += 1;
-      if (l.status === 'Won') counts.Won += 1;
-      if (l.status === 'Lost') counts.Lost += 1;
-      if (isLeadOverdue(l)) counts.Overdue += 1;
+      else if (l.status === 'In Progress') counts['In Progress'] += 1;
+      else if (l.status === 'Won') counts.Won += 1;
+      else if (l.status === 'Lost') counts.Lost += 1;
+
+      // Count follow-ups (leads that have a pending followUpAt scheduled)
+      if (l.followUpAt && l.status !== 'Won' && l.status !== 'Lost') {
+        counts['Follow-up'] += 1;
+      }
     });
 
     return counts;
   }, [leads]);
 
-  // Filter items definition with labels and counts
-  const filters: { key: FilterType; label: string }[] = [
+  const filterTabs: { key: FilterCategory; label: string }[] = [
     { key: 'All', label: `All ${filterCounts.All}` },
     { key: 'New', label: `New ${filterCounts.New}` },
     { key: 'In Progress', label: `In Progress ${filterCounts['In Progress']}` },
-    { key: 'Overdue', label: `Overdue ${filterCounts.Overdue}` },
+    { key: 'Follow-up', label: `Follow-up ${filterCounts['Follow-up']}` },
     { key: 'Won', label: `Won ${filterCounts.Won}` },
     { key: 'Lost', label: `Lost ${filterCounts.Lost}` },
   ];
 
-  // Sorting logic: Overdue & Urgent first, then nearest follow-up date
-  const sortedAndFilteredLeads = useMemo(() => {
-    // 1. Filter
-    const filtered = leads.filter((lead) => {
+  // Filtered leads
+  const filteredLeads = useMemo(() => {
+    return leads.filter((lead) => {
       // Category filter
       if (selectedFilter === 'New' && lead.status !== 'New Lead') return false;
       if (selectedFilter === 'In Progress' && lead.status !== 'In Progress') return false;
+      if (selectedFilter === 'Follow-up' && (!lead.followUpAt || lead.status === 'Won' || lead.status === 'Lost')) return false;
       if (selectedFilter === 'Won' && lead.status !== 'Won') return false;
       if (selectedFilter === 'Lost' && lead.status !== 'Lost') return false;
-      if (selectedFilter === 'Overdue' && !isLeadOverdue(lead)) return false;
 
-      // Client-side search across name, phone, products & summary
+      // Search filter
       if (search.trim()) {
-        const query = search.trim().toLowerCase();
-        const matchesName = lead.customerName.toLowerCase().includes(query);
-        const matchesPhone = lead.phone.toLowerCase().includes(query);
-        const matchesProducts =
-          lead.products?.some((p) => p.toLowerCase().includes(query)) ||
-          lead.requirementSummary.toLowerCase().includes(query);
-        return matchesName || matchesPhone || matchesProducts;
+        const q = search.trim().toLowerCase();
+        const matchesName = lead.customerName.toLowerCase().includes(q);
+        const matchesPhone = lead.phone.toLowerCase().includes(q);
+        const matchesReq = lead.requirementSummary?.toLowerCase().includes(q) || false;
+        const matchesLocation = lead.location?.address?.toLowerCase().includes(q) || false;
+        return matchesName || matchesPhone || matchesReq || matchesLocation;
       }
 
       return true;
     });
-
-    // 2. Sort: Overdue & Urgent first, then nearest followUpAt
-    return filtered.sort((a, b) => {
-      const aOverdue = isLeadOverdue(a);
-      const bOverdue = isLeadOverdue(b);
-
-      // Overdue first
-      if (aOverdue && !bOverdue) return -1;
-      if (!aOverdue && bOverdue) return 1;
-
-      // Urgent priority next
-      const aUrgent = a.priority === 'Urgent';
-      const bUrgent = b.priority === 'Urgent';
-      if (aUrgent && !bUrgent) return -1;
-      if (!aUrgent && bUrgent) return 1;
-
-      // Nearest followUpAt
-      const aTime = a.followUpAt ? a.followUpAt.toMillis() : Infinity;
-      const bTime = b.followUpAt ? b.followUpAt.toMillis() : Infinity;
-      if (aTime !== bTime) {
-        return aTime - bTime;
-      }
-
-      // Fallback to receivedDate descending
-      const aReceived = a.receivedDate ? a.receivedDate.toMillis() : 0;
-      const bReceived = b.receivedDate ? b.receivedDate.toMillis() : 0;
-      return bReceived - aReceived;
-    });
   }, [leads, selectedFilter, search]);
 
-  const handleCall = (phone: string, customerName: string) => {
-    const cleaned = phone.replace(/[^\d+]/g, '');
-    if (!cleaned) {
-      Alert.alert('Phone Unavailable', `No valid phone number for ${customerName}`);
-      return;
-    }
-    Linking.openURL(`tel:${cleaned}`).catch(() => {
-      Alert.alert('Calling Failed', `Could not dial ${phone}`);
-    });
-  };
-
-  const formatFollowUpText = (lead: Lead) => {
-    if (!lead.followUpAt) {
-      return { text: 'Not scheduled', isOverdue: false };
-    }
-    const date = lead.followUpAt.toDate();
-    const now = new Date();
-    const isOverdue = isLeadOverdue(lead);
-
-    const isToday =
-      date.getDate() === now.getDate() &&
-      date.getMonth() === now.getMonth() &&
-      date.getFullYear() === now.getFullYear();
-
-    const isTomorrow =
-      date.getDate() === now.getDate() + 1 &&
-      date.getMonth() === now.getMonth() &&
-      date.getFullYear() === now.getFullYear();
-
-    const timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
-    if (isToday) {
+  const getStatusBadgeConfig = (status: LeadStatus, followUpAt: any) => {
+    if (status === 'Won') {
       return {
-        text: isOverdue ? `Overdue · Today ${timeStr}` : `Today ${timeStr} · Visit`,
-        isOverdue,
+        label: 'Won',
+        bg: '#DCFCE7',
+        text: '#16A34A',
+        dot: '#16A34A',
       };
     }
-
-    if (isTomorrow) {
+    if (status === 'Lost') {
       return {
-        text: `Tomorrow ${timeStr}`,
-        isOverdue: false,
+        label: 'Lost',
+        bg: '#F1F5F9',
+        text: '#64748B',
+        dot: '#64748B',
       };
     }
-
-    const dateStr = date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+    if (status === 'New Lead') {
+      return {
+        label: 'New',
+        bg: '#EFF6FF',
+        text: '#2563EB',
+        dot: '#2563EB',
+      };
+    }
+    if (followUpAt) {
+      return {
+        label: 'Follow-up',
+        bg: '#F5F3FF',
+        text: '#7C3AED',
+        dot: '#7C3AED',
+      };
+    }
     return {
-      text: isOverdue ? `Overdue · ${dateStr} ${timeStr}` : `${dateStr} ${timeStr} · Visit`,
-      isOverdue,
+      label: 'In Progress',
+      bg: '#FEF3C7',
+      text: '#D97706',
+      dot: '#D97706',
     };
   };
 
-  const getStatusColor = (status: LeadStatus, isOverdue: boolean) => {
-    if (isOverdue) return theme.colors.danger;
-    switch (status) {
-      case 'New Lead':
-        return theme.colors.primary;
-      case 'In Progress':
-        return theme.colors.warning;
-      case 'Won':
-        return theme.colors.success;
-      case 'Lost':
-        return theme.colors.muted;
-      default:
-        return theme.colors.primary;
+  const formatFollowUpLine = (lead: Lead): string => {
+    if (!lead.followUpAt) return 'Not scheduled';
+    const d = typeof lead.followUpAt.toDate === 'function' ? lead.followUpAt.toDate() : new Date((lead.followUpAt as any) || Date.now());
+    const now = Date.now();
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    const type = lead.priority === 'Urgent' ? 'Visit' : 'Call';
+
+    if (d.getTime() < now) {
+      const day = d.getDate();
+      const month = d.toLocaleDateString('en-US', { month: 'short' });
+      return `Overdue ${day} ${month} · ${type}`;
     }
+    if (d >= today && d < tomorrow) {
+      const time = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+      return `Today ${time} · ${type}`;
+    }
+    const day = d.getDate();
+    const month = d.toLocaleDateString('en-US', { month: 'short' });
+    const time = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+    return `${day} ${month} ${time} · ${type}`;
   };
 
-  const getPriorityColor = (priority: LeadPriority) => {
-    switch (priority) {
-      case 'Urgent':
-        return theme.colors.danger;
-      case 'High':
-        return theme.colors.warning;
-      case 'Medium':
-        return theme.colors.primary;
-      case 'Low':
-        return theme.colors.muted;
-      default:
-        return theme.colors.muted;
-    }
-  };
+  // Error State Render
+  if (error) {
+    return (
+      <View style={styles.stateContainer}>
+        <View style={styles.errorCircle}>
+          <Feather name="alert-triangle" size={36} color={theme.colors.danger} />
+        </View>
+        <Text style={styles.stateTitle}>Unable to load leads</Text>
+        <Text style={styles.stateSubtitle}>Please check your connection.</Text>
+
+        <TouchableOpacity
+          style={styles.statePrimaryBtn}
+          onPress={() => setRefreshing(true)}
+          activeOpacity={0.85}
+        >
+          <Text style={styles.statePrimaryBtnText}>Try again</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.stateSecondaryBtn}
+          onPress={() => navigation.navigate('HomeTab')}
+          activeOpacity={0.85}
+        >
+          <Text style={styles.stateSecondaryBtnText}>Back to Home</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
-      {/* Sticky Header & Search Area */}
-      <View style={styles.headerContainer}>
-        <ScreenHeader
-          title="Leads"
-          subtitle={`${sortedAndFilteredLeads.length} leads`}
-          rightAction={
-            <TouchableOpacity style={styles.bellButton}>
-              <Feather name="bell" size={20} color={theme.colors.text} />
-              <View style={styles.unreadDot} />
-            </TouchableOpacity>
-          }
-        />
-
-        {/* SearchBar + Filters button matching Figma 1:2379 */}
-        <View style={styles.searchRow}>
-          <SearchBar
-            value={search}
-            onChangeText={setSearch}
-            placeholder="Search leads, products, phone..."
-            style={styles.searchBar}
-          />
-          <TouchableOpacity
-            style={styles.filterButton}
-            onPress={() => {
-              Alert.alert(
-                'Filter Leads',
-                'Select a status filter',
-                filters.map((f) => ({
-                  text: f.label,
-                  onPress: () => setSelectedFilter(f.key),
-                }))
-              );
-            }}
-            activeOpacity={0.8}
-          >
-            <Feather name="sliders" size={18} color={theme.colors.text} />
-          </TouchableOpacity>
+      {/* Top Header */}
+      <View style={styles.headerRow}>
+        <View style={styles.headerTitles}>
+          <Text style={styles.headerTitle}>Leads</Text>
+          <Text style={styles.headerSubtitle}>{leads.length} leads</Text>
         </View>
+        <TouchableOpacity style={styles.notificationButton} activeOpacity={0.8}>
+          <Feather name="bell" size={20} color={theme.colors.text} />
+        </TouchableOpacity>
+      </View>
 
-        {/* Horizontal Filter Chips */}
+      {/* Search Bar */}
+      <View style={styles.searchWrapper}>
+        <SearchBar
+          value={search}
+          onChangeText={setSearch}
+          placeholder="Search leads"
+          onFilterPress={() => {}}
+        />
+      </View>
+
+      {/* Horizontal Filter Tabs */}
+      <View style={styles.filterScrollWrapper}>
         <ScrollView
-          horizontal
+          horizontal={true}
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.filterScroll}
         >
-          {filters.map((f) => (
-            <Chip
-              key={f.key}
-              label={f.label}
-              selected={selectedFilter === f.key}
-              onPress={() => setSelectedFilter(f.key)}
-              style={styles.filterChip}
-            />
-          ))}
+          {filterTabs.map((tab) => {
+            const isSelected = selectedFilter === tab.key;
+            return (
+              <TouchableOpacity
+                key={tab.key}
+                style={[styles.filterPill, isSelected && styles.filterPillSelected]}
+                onPress={() => setSelectedFilter(tab.key)}
+                activeOpacity={0.8}
+              >
+                <Text
+                  style={[
+                    styles.filterPillText,
+                    isSelected && styles.filterPillTextSelected,
+                  ]}
+                >
+                  {tab.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
         </ScrollView>
       </View>
 
-      {/* FlatList of Lead Cards */}
-      <FlatList
-        data={sortedAndFilteredLeads}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.listContent}
-        showsVerticalScrollIndicator={false}
-        ListEmptyComponent={
-          <EmptyState
-            iconName="search"
-            title="No matching leads"
-            description="Try another name or clear filters."
-            actionLabel="Clear search"
-            onAction={() => {
-              setSearch('');
-              setSelectedFilter('All');
-            }}
-          />
-        }
-        renderItem={({ item }) => {
-          const overdue = isLeadOverdue(item);
-          const followUpInfo = formatFollowUpText(item);
-          const statusColor = getStatusColor(item.status, overdue);
-          const priorityColor = getPriorityColor(item.priority);
-
-          return (
-            <Card
-              style={styles.leadCard}
-              onPress={() =>
-                navigation.navigate('LeadDetails', {
-                  leadId: item.id,
-                  customerName: item.customerName,
-                })
-              }
+      {/* Loading Skeleton */}
+      {loading ? (
+        <ScrollView contentContainerStyle={styles.skeletonContainer}>
+          {[1, 2, 3, 4, 5].map((idx) => (
+            <View key={idx} style={styles.skeletonCard}>
+              <View style={styles.skeletonAvatar} />
+              <View style={styles.skeletonInfo}>
+                <View style={styles.skeletonLineLong} />
+                <View style={styles.skeletonLineMed} />
+                <View style={styles.skeletonLineShort} />
+              </View>
+            </View>
+          ))}
+        </ScrollView>
+      ) : filteredLeads.length === 0 ? (
+        /* Empty Search / Empty Leads State */
+        <View style={styles.emptyContainer}>
+          <Feather name="search" size={44} color={theme.colors.muted} />
+          <Text style={styles.emptyTitle}>No matching leads</Text>
+          <Text style={styles.emptySubtitle}>Try another name or clear filters.</Text>
+          {search ? (
+            <TouchableOpacity
+              style={styles.clearSearchBtn}
+              onPress={() => setSearch('')}
+              activeOpacity={0.85}
             >
-              <View style={styles.cardMainRow}>
-                {/* Initials Avatar */}
+              <Text style={styles.clearSearchBtnText}>Clear search</Text>
+            </TouchableOpacity>
+          ) : null}
+        </View>
+      ) : (
+        /* Leads List */
+        <FlatList
+          data={filteredLeads}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={() => setRefreshing(true)}
+              tintColor={theme.colors.text}
+            />
+          }
+          renderItem={({ item }) => {
+            const badge = getStatusBadgeConfig(item.status, item.followUpAt);
+            const followLine = formatFollowUpLine(item);
+
+            // Extract location & product
+            let locationText = 'Chennai';
+            if (item.location?.address) {
+              locationText = item.location.address.split(',')[0];
+            } else if (item.requirementSummary && item.requirementSummary.includes('·')) {
+              locationText = item.requirementSummary.split('·')[0].trim();
+            }
+            const productText = item.products?.[0] || 'Silicone sealants';
+
+            return (
+              <TouchableOpacity
+                style={styles.leadCard}
+                activeOpacity={0.75}
+                onPress={() =>
+                  navigation.navigate('LeadDetails', {
+                    leadId: item.id,
+                    customerName: item.customerName,
+                  })
+                }
+              >
                 <Avatar name={item.customerName} size="md" />
 
-                {/* Lead Information */}
-                <View style={styles.leadInfoContainer}>
-                  {/* Customer Name & Status */}
-                  <View style={styles.nameRow}>
+                <View style={styles.leadInfo}>
+                  <View style={styles.cardHeaderRow}>
                     <Text style={styles.customerName} numberOfLines={1}>
                       {item.customerName}
                     </Text>
-                    <View style={styles.chipsRow}>
-                      {item.priority === 'Urgent' && (
-                        <Chip
-                          label="Urgent"
-                          statusColor={priorityColor}
-                          style={styles.miniPriorityChip}
-                        />
-                      )}
-                      <Chip
-                        label={overdue ? 'Overdue' : item.status === 'New Lead' ? 'New' : item.status}
-                        statusColor={statusColor}
-                      />
-                    </View>
-                  </View>
 
-                  {/* Requirement Summary */}
-                  <Text style={styles.requirementSummary} numberOfLines={1}>
-                    {item.requirementSummary}
-                  </Text>
-
-                  {/* Follow-up Date & Call Action */}
-                  <View style={styles.bottomRow}>
-                    <View style={styles.followUpContainer}>
-                      <Feather
-                        name="clock"
-                        size={14}
-                        color={followUpInfo.isOverdue ? theme.colors.danger : theme.colors.muted}
-                        style={styles.clockIcon}
-                      />
-                      <Text
-                        style={[
-                          styles.followUpText,
-                          followUpInfo.isOverdue && styles.followUpOverdue,
-                        ]}
-                      >
-                        {followUpInfo.text}
+                    <View style={[styles.statusBadge, { backgroundColor: badge.bg }]}>
+                      <View style={[styles.statusDot, { backgroundColor: badge.dot }]} />
+                      <Text style={[styles.statusText, { color: badge.text }]}>
+                        {badge.label}
                       </Text>
                     </View>
+                  </View>
 
-                    {/* Black Round Call Button */}
-                    <TouchableOpacity
-                      style={styles.callButton}
-                      onPress={(e) => {
-                        e.stopPropagation();
-                        handleCall(item.phone, item.customerName);
-                      }}
-                      activeOpacity={0.8}
-                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                    >
-                      <Feather name="phone" size={13} color={theme.colors.white} />
-                    </TouchableOpacity>
+                  <Text style={styles.reqLocation} numberOfLines={1}>
+                    {locationText} · {productText}
+                  </Text>
+
+                  <View style={styles.scheduleRow}>
+                    <Feather name="clock" size={13} color={theme.colors.muted} />
+                    <Text style={styles.scheduleText}>{followLine}</Text>
                   </View>
                 </View>
-              </View>
-            </Card>
-          );
-        }}
+              </TouchableOpacity>
+            );
+          }}
+        />
+      )}
+
+      {/* Floating Action Button */}
+      <FAB
+        onPress={() => navigation.navigate('AddLead')}
+        style={styles.fabPosition}
       />
     </View>
   );
@@ -379,135 +349,273 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: theme.colors.background,
   },
-  headerContainer: {
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: theme.spacing.md,
     paddingTop: theme.spacing.lg,
-    backgroundColor: theme.colors.background,
+    paddingBottom: theme.spacing.sm,
   },
-  bellButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: theme.colors.card,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...theme.shadows.card,
-  },
-  unreadDot: {
-    position: 'absolute',
-    top: 9,
-    right: 9,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: theme.colors.danger,
-    borderWidth: 1.5,
-    borderColor: theme.colors.card,
-  },
-  searchRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: theme.spacing.xs,
-  },
-  searchBar: {
+  headerTitles: {
     flex: 1,
-    marginRight: theme.spacing.sm,
   },
-  filterButton: {
-    width: 48,
-    height: 48,
-    borderRadius: theme.radius.md,
+  headerTitle: {
+    fontFamily: theme.fonts.bold,
+    fontSize: 28,
+    color: theme.colors.text,
+  },
+  headerSubtitle: {
+    fontFamily: theme.fonts.regular,
+    fontSize: 14,
+    color: theme.colors.muted,
+    marginTop: 2,
+  },
+  notificationButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: theme.colors.card,
     borderWidth: 1,
     borderColor: theme.colors.border,
     alignItems: 'center',
     justifyContent: 'center',
     ...theme.shadows.card,
+  },
+  searchWrapper: {
+    paddingHorizontal: theme.spacing.md,
+    marginBottom: theme.spacing.sm,
+  },
+  filterScrollWrapper: {
+    marginBottom: theme.spacing.md,
   },
   filterScroll: {
-    paddingVertical: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.md,
+    gap: 8,
   },
-  filterChip: {
-    marginRight: theme.spacing.xs + 2,
+  filterPill: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: theme.radius.pill,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.card,
+  },
+  filterPillSelected: {
+    backgroundColor: theme.colors.black,
+    borderColor: theme.colors.black,
+  },
+  filterPillText: {
+    fontFamily: theme.fonts.medium,
+    fontSize: 13,
+    color: theme.colors.text,
+  },
+  filterPillTextSelected: {
+    color: theme.colors.white,
+    fontFamily: theme.fonts.semiBold,
   },
   listContent: {
-    padding: theme.spacing.md,
-    paddingBottom: 120,
+    paddingHorizontal: theme.spacing.md,
+    paddingBottom: 110,
   },
   leadCard: {
-    marginBottom: theme.spacing.sm + 2,
-    padding: theme.spacing.md,
-  },
-  cardMainRow: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-  },
-  leadInfoContainer: {
-    flex: 1,
-    marginLeft: theme.spacing.md,
-  },
-  nameRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    backgroundColor: theme.colors.card,
+    borderRadius: theme.radius.card,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    padding: theme.spacing.md,
+    marginBottom: 10,
+    ...theme.shadows.card,
+  },
+  leadInfo: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  cardHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     marginBottom: 4,
   },
   customerName: {
-    flex: 1,
     fontFamily: theme.fonts.bold,
-    fontSize: 15,
+    fontSize: 16,
     color: theme.colors.text,
-    marginRight: theme.spacing.xs,
+    flex: 1,
+    marginRight: 6,
   },
-  chipsRow: {
+  statusBadge: {
     flexDirection: 'row',
     alignItems: 'center',
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: theme.radius.pill,
   },
-  miniPriorityChip: {
-    marginRight: 4,
-    paddingVertical: 2,
-    paddingHorizontal: 6,
+  statusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    marginRight: 5,
   },
-  requirementSummary: {
+  statusText: {
+    fontFamily: theme.fonts.semiBold,
+    fontSize: 11,
+  },
+  reqLocation: {
     fontFamily: theme.fonts.regular,
     fontSize: 13,
     color: theme.colors.muted,
-    lineHeight: 18,
-    marginBottom: 8,
+    marginBottom: 4,
   },
-  bottomRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  followUpContainer: {
+  scheduleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    flex: 1,
+    gap: 4,
   },
-  clockIcon: {
-    marginRight: 4,
-  },
-  followUpText: {
-    fontFamily: theme.fonts.medium,
+  scheduleText: {
+    fontFamily: theme.fonts.regular,
     fontSize: 12,
     color: theme.colors.muted,
   },
-  followUpOverdue: {
-    color: theme.colors.danger,
-    fontFamily: theme.fonts.semiBold,
+  fabPosition: {
+    position: 'absolute',
+    bottom: 85,
+    right: 20,
   },
-  callButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: theme.colors.black,
+  // Skeleton styles
+  skeletonContainer: {
+    paddingHorizontal: theme.spacing.md,
+  },
+  skeletonCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.colors.card,
+    borderRadius: theme.radius.card,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    padding: theme.spacing.md,
+    marginBottom: 10,
+  },
+  skeletonAvatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#F1F5F9',
+  },
+  skeletonInfo: {
+    flex: 1,
+    marginLeft: 12,
+    gap: 8,
+  },
+  skeletonLineLong: {
+    height: 14,
+    width: '60%',
+    borderRadius: 4,
+    backgroundColor: '#F1F5F9',
+  },
+  skeletonLineMed: {
+    height: 12,
+    width: '80%',
+    borderRadius: 4,
+    backgroundColor: '#F1F5F9',
+  },
+  skeletonLineShort: {
+    height: 10,
+    width: '40%',
+    borderRadius: 4,
+    backgroundColor: '#F1F5F9',
+  },
+  // Empty & Error states
+  emptyContainer: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    marginLeft: theme.spacing.sm,
-    ...theme.shadows.card,
+    paddingHorizontal: theme.spacing.lg,
+    paddingBottom: 80,
+  },
+  emptyTitle: {
+    fontFamily: theme.fonts.bold,
+    fontSize: 20,
+    color: theme.colors.text,
+    marginTop: 16,
+  },
+  emptySubtitle: {
+    fontFamily: theme.fonts.regular,
+    fontSize: 14,
+    color: theme.colors.muted,
+    marginTop: 4,
+    textAlign: 'center',
+  },
+  clearSearchBtn: {
+    backgroundColor: theme.colors.black,
+    borderRadius: theme.radius.pill,
+    paddingVertical: 14,
+    paddingHorizontal: 32,
+    marginTop: 20,
+  },
+  clearSearchBtnText: {
+    fontFamily: theme.fonts.semiBold,
+    fontSize: 15,
+    color: theme.colors.white,
+  },
+  stateContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: theme.spacing.lg,
+    backgroundColor: theme.colors.background,
+  },
+  errorCircle: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: '#FEE2E2',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  stateTitle: {
+    fontFamily: theme.fonts.bold,
+    fontSize: 22,
+    color: theme.colors.text,
+    marginBottom: 6,
+  },
+  stateSubtitle: {
+    fontFamily: theme.fonts.regular,
+    fontSize: 14,
+    color: theme.colors.muted,
+    marginBottom: 24,
+  },
+  statePrimaryBtn: {
+    width: '100%',
+    backgroundColor: theme.colors.black,
+    borderRadius: theme.radius.pill,
+    paddingVertical: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+  statePrimaryBtnText: {
+    fontFamily: theme.fonts.semiBold,
+    fontSize: 16,
+    color: theme.colors.white,
+  },
+  stateSecondaryBtn: {
+    width: '100%',
+    backgroundColor: theme.colors.card,
+    borderWidth: 1,
+    borderColor: theme.colors.borderDark,
+    borderRadius: theme.radius.pill,
+    paddingVertical: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stateSecondaryBtnText: {
+    fontFamily: theme.fonts.semiBold,
+    fontSize: 16,
+    color: theme.colors.text,
   },
 });
 
