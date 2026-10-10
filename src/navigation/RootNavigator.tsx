@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { View, StyleSheet, Text } from 'react-native';
 import { useAuth } from '../context/AuthContext';
-import { DevLoginScreen } from '../screens/auth/DevLoginScreen';
+import { LoginScreen } from '../screens/auth/LoginScreen';
 import { AdminNavigator } from './AdminNavigator';
 import { StaffNavigator } from './StaffNavigator';
 import { theme } from '../theme';
@@ -10,22 +10,33 @@ import { AppButton, Card, LoadingView } from '../components';
 export const RootNavigator: React.FC = () => {
   const { user, profile, role, loading, accountError, signOut } = useAuth();
 
+  useEffect(() => {
+    // If authenticated user has an unassigned/invalid role, immediately sign out
+    if (user && role !== 'admin' && role !== 'staff' && !loading) {
+      console.log(`[ROLE-DEBUG] RootNavigator: user authenticated but role="${role}" is invalid. Triggering signOut.`);
+      signOut();
+    }
+  }, [user, role, loading, signOut]);
+
   if (loading) {
+    console.log('[ROLE-DEBUG] RootNavigator rendering: LoadingView (verifying auth/profile)');
     return <LoadingView message="Verifying authentication..." />;
   }
 
   if (!user) {
-    return <DevLoginScreen />;
+    console.log('[ROLE-DEBUG] RootNavigator rendering: LoginScreen (no active user)');
+    return <LoginScreen />;
   }
 
   if (accountError) {
+    console.log(`[ROLE-DEBUG] RootNavigator rendering: Error Card (accountError="${accountError}")`);
     return (
       <View style={styles.fallbackContainer}>
         <Card style={styles.card} padding="xl">
           <Text style={styles.title}>Account Issue</Text>
           <Text style={styles.message}>{accountError}</Text>
           <AppButton
-            title="Sign Out"
+            title="Return to Login"
             onPress={signOut}
             variant="danger"
             size="md"
@@ -36,23 +47,27 @@ export const RootNavigator: React.FC = () => {
     );
   }
 
+  // Strictly route by Firestore role
   if (role === 'admin') {
+    console.log('[ROLE-DEBUG] RootNavigator choosing: AdminNavigator because role === "admin"');
     return <AdminNavigator />;
   }
 
   if (role === 'staff') {
+    console.log('[ROLE-DEBUG] RootNavigator choosing: StaffNavigator because role === "staff"');
     return <StaffNavigator />;
   }
 
+  console.log(`[ROLE-DEBUG] RootNavigator fallback: role is "${role}" (unrecognized) -> rendering fallback`);
   return (
     <View style={styles.fallbackContainer}>
       <Card style={styles.card} padding="xl">
         <Text style={styles.title}>Role Unassigned</Text>
         <Text style={styles.message}>
-          Your account ({profile?.email || user.email}) is not yet assigned an active role. Please contact an administrator.
+          Your account ({profile?.email || 'User'}) is not yet assigned an active role. Contact the admin.
         </Text>
         <AppButton
-          title="Sign Out"
+          title="Return to Login"
           onPress={signOut}
           variant="danger"
           size="md"

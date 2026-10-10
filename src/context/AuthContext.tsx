@@ -5,8 +5,7 @@ import {
   onAuthStateChanged,
   User as FirebaseUser,
 } from 'firebase/auth';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { Alert } from 'react-native';
+import { doc, getDoc, onSnapshot } from 'firebase/firestore';
 import { auth, db } from '../services/firebase';
 import { User, UserRole } from '../types';
 import { COLLECTIONS } from '../constants';
@@ -18,7 +17,7 @@ export interface AuthContextType {
   role: UserRole | null;
   loading: boolean;
   accountError: string | null;
-  signIn: (emailOrStaffId: string, password: string) => Promise<void>;
+  signIn: (emailOrStaffId: string, password: string, personaHint?: 'admin' | 'staff') => Promise<void>;
   signOut: () => Promise<void>;
 }
 
@@ -32,154 +31,190 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [accountError, setAccountError] = useState<string | null>(null);
 
   useEffect(() => {
-    let unsubscribe = () => {};
-    try {
-      unsubscribe = onAuthStateChanged(auth, async (fbUser: FirebaseUser | null) => {
-        if (!fbUser) {
-          setFirebaseUser(null);
-          setProfile(null);
-          setRole(null);
-          setAccountError(null);
-          setLoading(false);
-          return;
-        }
+    let unsubscribeDoc = () => {};
 
-        setFirebaseUser(fbUser);
+    const unsubscribeAuth = onAuthStateChanged(auth, async (fbUser: FirebaseUser | null) => {
+      unsubscribeDoc();
+
+      if (!fbUser) {
+        console.log('[ROLE-DEBUG] Auth state changed: No authenticated Firebase user.');
+        setFirebaseUser(null);
+        setProfile(null);
+        setRole(null);
         setAccountError(null);
+        setLoading(false);
+        return;
+      }
 
-        try {
-          const userDocRef = doc(db, COLLECTIONS.USERS, fbUser.uid);
-          const userDocSnap = await getDoc(userDocRef);
+      console.log(`[ROLE-DEBUG] onAuthStateChanged active user: uid=${fbUser.uid}, email=${fbUser.email}`);
+      setFirebaseUser(fbUser);
+      setAccountError(null);
 
-          if (!userDocSnap.exists()) {
-            console.warn(`User document for ${fbUser.uid} not found in Firestore. Creating default profile.`);
-            const isAdmin = (fbUser.email || '').toLowerCase().includes('admin');
-            const newUserDoc: Omit<User, 'uid'> = {
-              name: isAdmin ? 'Admin User' : 'Staff Member',
-              email: fbUser.email || '',
-              phone: '',
-              role: (isAdmin ? 'admin' : 'staff') as UserRole,
-              active: true,
-              staffId: isAdmin ? 'ADM001' : 'STF001',
-              createdAt: new Date() as any,
-            };
-            await setDoc(userDocRef, newUserDoc).catch(() => {});
-            const fullProfile: User = {
+      try {
+        const userDocRef = doc(db, COLLECTIONS.USERS, fbUser.uid);
+
+        // Real-time listener on the user's Firestore document
+        unsubscribeDoc = onSnapshot(
+          userDocRef,
+          async (snap) => {
+            const exists = snap.exists();
+            console.log(`[ROLE-DEBUG] Snapshot for users/${fbUser.uid} -> exists=${exists}`);
+
+            if (!exists) {
+              console.log(`[ROLE-DEBUG] users/${fbUser.uid} NOT FOUND in Firestore. Signing out.`);
+              await firebaseSignOut(auth).catch(() => {});
+              setFirebaseUser(null);
+              setProfile(null);
+              setRole(null);
+              setAccountError('Account not set up. Contact the admin.');
+              setLoading(false);
+              return;
+            }
+
+            const userData = snap.data() as Partial<User>;
+            console.log('[ROLE-DEBUG] Raw Firestore user data:', JSON.stringify(userData));
+
+            if (userData.active === false) {
+              console.log(`[ROLE-DEBUG] users/${fbUser.uid} active is false. Signing out.`);
+              await firebaseSignOut(auth).catch(() => {});
+              setFirebaseUser(null);
+              setProfile(null);
+              setRole(null);
+              setAccountError('Account not set up. Contact the admin.');
+              setLoading(false);
+              return;
+            }
+
+            const roleValue = userData.role;
+            console.log(`[ROLE-DEBUG] Extracted role: "${roleValue}" (type: ${typeof roleValue})`);
+
+            if (roleValue !== 'admin' && roleValue !== 'staff') {
+              console.log(`[ROLE-DEBUG] Invalid role "${roleValue}". Signing out.`);
+              await firebaseSignOut(auth).catch(() => {});
+              setFirebaseUser(null);
+              setProfile(null);
+              setRole(null);
+              setAccountError('Account not set up. Contact the admin.');
+              setLoading(false);
+              return;
+            }
+
+            const resolvedRole: UserRole = roleValue;
+            const resolvedProfile: User = {
               uid: fbUser.uid,
-              ...newUserDoc,
+              email: userData.email || fbUser.email || '',
+              name: userData.name || (resolvedRole === 'admin' ? 'Administrator' : 'Staff Member'),
+              role: resolvedRole,
+              staffId: userData.staffId || (resolvedRole === 'admin' ? 'ADM001' : 'STF001'),
+              active: userData.active ?? true,
+              phone: userData.phone || '',
+              createdAt: userData.createdAt || (new Date() as any),
             };
-            setProfile(fullProfile);
-            setRole(fullProfile.role);
-            setLoading(false);
-            return;
-          }
 
-          const userData = userDocSnap.data() as Partial<User>;
-          if (userData.active === false) {
-            console.warn(`User ${fbUser.uid} is marked inactive.`);
-            setAccountError('Your account has been deactivated. Please contact an administrator.');
+            console.log(`[ROLE-DEBUG] AuthContext role set to "${resolvedRole}".`);
+            setProfile(resolvedProfile);
+            setRole(resolvedRole);
+            setLoading(false);
+          },
+          async (err) => {
+            console.error('[ROLE-DEBUG] Firestore snapshot error:', err);
+            await firebaseSignOut(auth).catch(() => {});
+            setFirebaseUser(null);
             setProfile(null);
             setRole(null);
+            setAccountError('Account not set up. Contact the admin.');
             setLoading(false);
-            return;
           }
-
-          if (!userData.role || (userData.role !== 'admin' && userData.role !== 'staff')) {
-            console.warn(`User ${fbUser.uid} has invalid role: ${userData.role}`);
-            setAccountError(`Invalid account role: ${userData.role || 'none'}. Please contact an administrator.`);
-            setProfile(null);
-            setRole(null);
-            setLoading(false);
-            return;
-          }
-
-          const resolvedProfile: User = {
-            uid: fbUser.uid,
-            email: userData.email || fbUser.email || '',
-            name: userData.name || 'User',
-            role: userData.role,
-            staffId: userData.staffId || (userData.role === 'admin' ? 'ADM001' : 'STF001'),
-            active: userData.active ?? true,
-            phone: userData.phone || '',
-            createdAt: userData.createdAt || (new Date() as any),
-          };
-
-          setProfile(resolvedProfile);
-          setRole(resolvedProfile.role);
-        } catch (error: any) {
-          console.error('Error fetching user document from Firestore:', error);
-          setAccountError(`Failed to load account profile: ${error?.message || error}`);
-          setProfile(null);
-          setRole(null);
-        } finally {
-          setLoading(false);
-        }
-      });
-    } catch (authErr) {
-      console.error('Error attaching auth listener:', authErr);
-      setLoading(false);
-    }
+        );
+      } catch (error: any) {
+        console.error('[ROLE-DEBUG] Error attaching user document listener:', error);
+        await firebaseSignOut(auth).catch(() => {});
+        setFirebaseUser(null);
+        setProfile(null);
+        setRole(null);
+        setAccountError('Account not set up. Contact the admin.');
+        setLoading(false);
+      }
+    });
 
     return () => {
-      try {
-        unsubscribe();
-      } catch (e) {
-        // ignore
-      }
+      unsubscribeAuth();
+      unsubscribeDoc();
     };
   }, []);
 
-  const signIn = async (emailOrStaffId: string, password: string): Promise<void> => {
+  const signIn = async (
+    emailOrStaffId: string,
+    password: string,
+    personaHint?: 'admin' | 'staff'
+  ): Promise<void> => {
     const trimmedInput = emailOrStaffId.trim();
     const formattedEmail = trimmedInput.includes('@')
       ? trimmedInput
       : `${trimmedInput.toLowerCase()}@sabeena.test`;
 
+    console.log(`[ROLE-DEBUG] signIn attempt: input="${emailOrStaffId}", formattedEmail="${formattedEmail}", personaHint="${personaHint}"`);
+
     const userCredential = await signInWithEmailAndPassword(auth, formattedEmail, password);
     const fbUser = userCredential.user;
-    setFirebaseUser(fbUser);
+    console.log(`[ROLE-DEBUG] Firebase Auth sign-in successful: uid=${fbUser.uid}, email=${fbUser.email}`);
     setAccountError(null);
 
+    // Strictly read users/{uid} from Firestore - NEVER write or overwrite
     const userDocRef = doc(db, COLLECTIONS.USERS, fbUser.uid);
     const userDocSnap = await getDoc(userDocRef);
 
-    if (!userDocSnap.exists()) {
-      const isAdmin = formattedEmail.toLowerCase().includes('admin');
-      const newUserDoc: Omit<User, 'uid'> = {
-        name: isAdmin ? 'Admin User' : 'Staff Member',
-        email: fbUser.email || formattedEmail,
-        phone: '',
-        role: (isAdmin ? 'admin' : 'staff') as UserRole,
-        active: true,
-        staffId: isAdmin ? 'ADM001' : 'STF001',
-        createdAt: new Date() as any,
-      };
-      await setDoc(userDocRef, newUserDoc).catch(() => {});
-      const fullProfile: User = {
-        uid: fbUser.uid,
-        ...newUserDoc,
-      };
-      setProfile(fullProfile);
-      setRole(fullProfile.role);
-      return;
-    }
+    const exists = userDocSnap.exists();
+    console.log(`[ROLE-DEBUG] signIn getDoc users/${fbUser.uid} -> exists=${exists}`);
 
-    const userData = userDocSnap.data() as Partial<User>;
-    if (userData.active === false) {
+    if (!exists) {
+      console.log(`[ROLE-DEBUG] users/${fbUser.uid} does NOT exist in Firestore. Signing out.`);
       await firebaseSignOut(auth).catch(() => {});
       setFirebaseUser(null);
       setProfile(null);
       setRole(null);
-      const errMsg = 'Your account is currently deactivated. Please contact an admin.';
-      Alert.alert('Login Failed', errMsg);
-      throw new Error(errMsg);
+      throw new Error('Account not set up. Contact the admin.');
     }
 
-    const resolvedRole = (userData.role === 'admin' ? 'admin' : 'staff') as UserRole;
+    const userData = userDocSnap.data() as Partial<User>;
+    console.log('[ROLE-DEBUG] signIn Firestore user data:', JSON.stringify(userData));
+
+    if (userData.active === false) {
+      console.log(`[ROLE-DEBUG] users/${fbUser.uid} is inactive. Signing out.`);
+      await firebaseSignOut(auth).catch(() => {});
+      setFirebaseUser(null);
+      setProfile(null);
+      setRole(null);
+      throw new Error('Account not set up. Contact the admin.');
+    }
+
+    const roleValue = userData.role;
+    console.log(`[ROLE-DEBUG] signIn role from Firestore: "${roleValue}" (type: ${typeof roleValue})`);
+
+    if (roleValue !== 'admin' && roleValue !== 'staff') {
+      console.log(`[ROLE-DEBUG] signIn role is invalid ("${roleValue}"). Signing out.`);
+      await firebaseSignOut(auth).catch(() => {});
+      setFirebaseUser(null);
+      setProfile(null);
+      setRole(null);
+      throw new Error('Account not set up. Contact the admin.');
+    }
+
+    // Persona hint check
+    if (personaHint && roleValue !== personaHint) {
+      console.log(`[ROLE-DEBUG] Persona mismatch: chosen toggle="${personaHint}", Firestore role="${roleValue}". Signing out.`);
+      await firebaseSignOut(auth).catch(() => {});
+      setFirebaseUser(null);
+      setProfile(null);
+      setRole(null);
+      throw new Error(`This account is not a ${personaHint} account`);
+    }
+
+    const resolvedRole: UserRole = roleValue;
     const fullProfile: User = {
       uid: fbUser.uid,
       email: userData.email || fbUser.email || '',
-      name: userData.name || 'User',
+      name: userData.name || (resolvedRole === 'admin' ? 'Administrator' : 'Staff Member'),
       role: resolvedRole,
       staffId: userData.staffId || (resolvedRole === 'admin' ? 'ADM001' : 'STF001'),
       active: userData.active ?? true,
@@ -187,11 +222,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       createdAt: userData.createdAt || (new Date() as any),
     };
 
+    console.log(`[ROLE-DEBUG] signIn complete. Setting role to "${resolvedRole}".`);
+    setFirebaseUser(fbUser);
     setProfile(fullProfile);
-    setRole(fullProfile.role);
+    setRole(resolvedRole);
   };
 
   const signOut = async (): Promise<void> => {
+    console.log('[ROLE-DEBUG] signOut called.');
     await firebaseSignOut(auth).catch(() => {});
     setFirebaseUser(null);
     setProfile(null);
