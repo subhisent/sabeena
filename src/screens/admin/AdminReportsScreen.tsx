@@ -15,12 +15,12 @@ import { collection, onSnapshot } from 'firebase/firestore';
 import { theme } from '../../theme';
 import { db } from '../../services/firebase';
 import { Lead, LeadSource, LeadStatus } from '../../types';
+import { LEAD_SOURCES, INDUSTRIES, PRODUCT_CATEGORIES } from '../../config/business';
 import { Card, Screen, ScreenHeader } from '../../components';
 import { SCREEN_HORIZONTAL_PADDING } from '../../constants';
 
 type TimePeriod = 'month' | 'quarter' | 'year';
 
-const SOURCE_LIST: LeadSource[] = ['IndiaMART', 'Walk-in', 'WhatsApp', 'Referral', 'Website'];
 const STATUS_LIST: { key: LeadStatus; label: string; color: string }[] = [
   { key: 'Won', label: 'Won', color: '#16A34A' },
   { key: 'In Progress', label: 'In Progress', color: '#D97706' },
@@ -137,7 +137,7 @@ export const AdminReportsScreen: React.FC = () => {
     const data = filteredLeads.length > 0 ? filteredLeads : leads;
     const total = Math.max(1, data.length);
 
-    return SOURCE_LIST.map((src) => {
+    return LEAD_SOURCES.map((src) => {
       const count = data.filter((l) => l.source === src).length;
       const percent = Math.round((count / total) * 100);
       return {
@@ -146,6 +146,53 @@ export const AdminReportsScreen: React.FC = () => {
         percent,
       };
     }).sort((a, b) => b.count - a.count);
+  }, [filteredLeads, leads]);
+
+  // Leads by industry
+  const industryBreakdown = useMemo(() => {
+    const data = filteredLeads.length > 0 ? filteredLeads : leads;
+    const total = Math.max(1, data.length);
+
+    return INDUSTRIES.map((ind) => {
+      const count = data.filter((l) => (l.industry || 'Other') === ind).length;
+      const percent = Math.round((count / total) * 100);
+      return {
+        industry: ind,
+        count,
+        percent,
+      };
+    }).sort((a, b) => b.count - a.count);
+  }, [filteredLeads, leads]);
+
+  // Top product categories
+  const topProductsBreakdown = useMemo(() => {
+    const data = filteredLeads.length > 0 ? filteredLeads : leads;
+    const total = Math.max(1, data.length);
+    const countMap: Record<string, number> = {};
+
+    data.forEach((l) => {
+      if (Array.isArray(l.products)) {
+        l.products.forEach((prod) => {
+          countMap[prod] = (countMap[prod] || 0) + 1;
+        });
+      }
+    });
+
+    const entries = Object.keys(countMap).map((prod) => ({
+      product: prod,
+      count: countMap[prod],
+      percent: Math.round((countMap[prod] / total) * 100),
+    }));
+
+    if (entries.length === 0) {
+      return PRODUCT_CATEGORIES.slice(0, 4).map((p) => ({
+        product: p,
+        count: 0,
+        percent: 0,
+      }));
+    }
+
+    return entries.sort((a, b) => b.count - a.count).slice(0, 6);
   }, [filteredLeads, leads]);
 
   // Lead outcome distribution
@@ -167,11 +214,13 @@ export const AdminReportsScreen: React.FC = () => {
   // Dynamic AI / Analytics Insight
   const analyticalInsight = useMemo(() => {
     const topSource = sourceBreakdown[0];
+    const topIndustry = industryBreakdown[0];
     if (!topSource || topSource.count === 0) {
-      return 'Start receiving and converting leads across multiple channels to generate detailed analytics.';
+      return 'Start receiving and converting leads across IndiaMART, Walk-ins, and WhatsApp to generate detailed machinery analytics.';
     }
-    return `${topSource.source} is your leading acquisition channel generating ${topSource.percent}% of total incoming leads with an overall conversion rate of ${stats.conversionRate}%.`;
-  }, [sourceBreakdown, stats]);
+    const industryInfo = topIndustry && topIndustry.count > 0 ? ` ${topIndustry.industry} is your primary target vertical (${topIndustry.percent}%).` : '';
+    return `${topSource.source} is your leading acquisition channel generating ${topSource.percent}% of total incoming leads with an overall conversion rate of ${stats.conversionRate}%.${industryInfo}`;
+  }, [sourceBreakdown, industryBreakdown, stats]);
 
   return (
     <Screen
@@ -315,6 +364,62 @@ export const AdminReportsScreen: React.FC = () => {
                           {
                             width: `${Math.max(4, item.percent)}%`,
                             backgroundColor: theme.colors.primary,
+                          },
+                        ]}
+                      />
+                    </View>
+                  </View>
+                ))}
+              </View>
+            </Card>
+
+            {/* LEADS BY INDUSTRY */}
+            <Card style={styles.sectionCard} padding="lg">
+              <Text style={styles.sectionTitle}>Leads by industry</Text>
+              <View style={styles.progressList}>
+                {industryBreakdown.map((item) => (
+                  <View key={item.industry} style={styles.progressItem}>
+                    <View style={styles.progressLabelRow}>
+                      <Text style={styles.progressLabel}>{item.industry}</Text>
+                      <Text style={styles.progressValues}>
+                        <Text style={styles.progressValueBold}>{item.count}</Text> leads ({item.percent}%)
+                      </Text>
+                    </View>
+                    <View style={styles.progressBarTrack}>
+                      <View
+                        style={[
+                          styles.progressBarFill,
+                          {
+                            width: `${Math.max(4, item.percent)}%`,
+                            backgroundColor: '#0284C7',
+                          },
+                        ]}
+                      />
+                    </View>
+                  </View>
+                ))}
+              </View>
+            </Card>
+
+            {/* TOP PRODUCT CATEGORIES */}
+            <Card style={styles.sectionCard} padding="lg">
+              <Text style={styles.sectionTitle}>Top product categories</Text>
+              <View style={styles.progressList}>
+                {topProductsBreakdown.map((item) => (
+                  <View key={item.product} style={styles.progressItem}>
+                    <View style={styles.progressLabelRow}>
+                      <Text style={styles.progressLabel}>{item.product}</Text>
+                      <Text style={styles.progressValues}>
+                        <Text style={styles.progressValueBold}>{item.count}</Text> enquiries ({item.percent}%)
+                      </Text>
+                    </View>
+                    <View style={styles.progressBarTrack}>
+                      <View
+                        style={[
+                          styles.progressBarFill,
+                          {
+                            width: `${Math.max(4, item.percent)}%`,
+                            backgroundColor: '#7C3AED',
                           },
                         ]}
                       />

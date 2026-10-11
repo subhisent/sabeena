@@ -183,7 +183,7 @@ export const ProfileScreen: React.FC = () => {
 
   const staffName = user?.name || 'Staff Member';
   const staffId = user?.staffId || 'STF001';
-  const staffEmail = user?.email || 'staff@sabeena.test';
+  const staffEmail = user?.email || 'staff@sabena.test';
   const staffPhone = user?.phone || '+91 98401 23456';
 
   return (
@@ -314,7 +314,7 @@ export const ProfileScreen: React.FC = () => {
             onPress={() =>
               Alert.alert(
                 'Support Desk',
-                'For technical assistance or territory reassignments, please contact support@sabeenasealers.com'
+                'For technical assistance or territory reassignments, please contact support@sabenapackaging.com'
               )
             }
             activeOpacity={0.7}

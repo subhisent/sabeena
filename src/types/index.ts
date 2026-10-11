@@ -79,7 +79,14 @@ export interface Interaction {
 }
 
 // Additional legacy / extended lead management types
-export type LeadSource = 'IndiaMART' | 'Walk-in' | 'Referral' | 'WhatsApp' | 'Website';
+export type LeadSource =
+  | 'IndiaMART'
+  | 'Walk-in'
+  | 'Referral'
+  | 'WhatsApp'
+  | 'Website'
+  | 'Phone Call'
+  | 'Social Media';
 export type LeadStatus = 'New Lead' | 'In Progress' | 'Won' | 'Lost';
 export type LeadPriority = 'Low' | 'Medium' | 'High' | 'Urgent';
 
@@ -93,6 +100,10 @@ export interface Lead {
   id: string;
   customerId: string;
   customerName: string;
+  company?: string;
+  contactPerson?: string;
+  industry?: string;
+  quantity?: string | number;
   phone: string;
   source: LeadSource;
   receivedDate: Timestamp;

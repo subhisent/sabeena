@@ -207,7 +207,7 @@ export const StaffProfileScreen: React.FC = () => {
         <TouchableOpacity
           style={styles.settingsItem}
           activeOpacity={0.75}
-          onPress={() => Alert.alert('Help & Support', 'Contact admin at admin@sabeena.com for help.')}
+          onPress={() => Alert.alert('Help & Support', 'Contact admin at admin@sabena.com for help.')}
         >
           <Feather name="help-circle" size={18} color={theme.colors.muted} />
           <Text style={styles.settingsItemText}>Help</Text>

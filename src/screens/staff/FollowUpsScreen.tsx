@@ -481,7 +481,15 @@ export const FollowUpsScreen: React.FC = () => {
 
                     {/* Customer Info */}
                     <View style={styles.cardBody}>
-                      <Text style={styles.customerName}>{lead.customerName}</Text>
+                      <Text style={styles.customerName}>{lead.company || lead.customerName}</Text>
+                      {lead.company && (lead.contactPerson || lead.customerName) ? (
+                        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 2, gap: 4 }}>
+                          <Feather name="user" size={11} color={theme.colors.muted} />
+                          <Text style={{ fontSize: 12, color: theme.colors.muted }} numberOfLines={1}>
+                            {lead.contactPerson || lead.customerName}
+                          </Text>
+                        </View>
+                      ) : null}
                       <Text style={styles.requirementText} numberOfLines={1}>
                         {lead.requirementSummary || lead.products?.join(', ') || 'General enquiry'}
                       </Text>
@@ -544,7 +552,9 @@ export const FollowUpsScreen: React.FC = () => {
               <View>
                 <Text style={styles.modalTitle}>Reschedule Follow-up</Text>
                 <Text style={styles.modalSubtitle}>
-                  {rescheduleLead?.customerName}
+                  {rescheduleLead?.company
+                    ? `${rescheduleLead.company} (${rescheduleLead.contactPerson || rescheduleLead.customerName})`
+                    : rescheduleLead?.customerName}
                 </Text>
               </View>
               <TouchableOpacity

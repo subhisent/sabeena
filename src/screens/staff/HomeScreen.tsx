@@ -234,11 +234,11 @@ export const HomeScreen: React.FC = () => {
       {nextLead ? (
         <View style={styles.nextUpCard}>
           <Text style={styles.nextUpHeader}>
-            2:00 PM · {nextLead.customerName}
+            2:00 PM · {nextLead.company || nextLead.customerName}
           </Text>
           <Text style={styles.nextUpType}>Visit</Text>
           <Text style={styles.nextUpSubtitle}>
-            {nextLead.location?.address ? nextLead.location.address.split(',')[0] : 'Anna Nagar'} · {nextLead.products?.[0] || 'Silicone sealants'}
+            {nextLead.location?.address ? nextLead.location.address.split(',')[0] : 'Ambattur'} · {nextLead.products?.[0] || 'Continuous Band Sealer'}
           </Text>
 
           <View style={styles.nextUpButtonRow}>

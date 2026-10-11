@@ -112,7 +112,7 @@ export const LoginScreen: React.FC = () => {
           <View style={styles.inputWrapper}>
             <TextInput
               style={styles.textInput}
-              placeholder="e.g. admin@sabeena.test or arun.k"
+              placeholder="e.g. admin@sabena.test or arun.k"
               placeholderTextColor="#94A3B8"
               autoCapitalize="none"
               autoCorrect={false}
@@ -229,7 +229,7 @@ export const LoginScreen: React.FC = () => {
 
         {/* Footer info */}
         <View style={styles.footer}>
-          <Text style={styles.footerTagline}>Your business. Our priority.</Text>
+          <Text style={styles.footerTagline}>House of Packing</Text>
           <Text style={styles.footerLegal}>
             Sabena Sealers Sales CRM • Enterprise 256-bit AES
           </Text>

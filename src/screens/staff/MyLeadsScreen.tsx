@@ -301,7 +301,7 @@ export const MyLeadsScreen: React.FC = () => {
             } else if (item.requirementSummary && item.requirementSummary.includes('·')) {
               locationText = item.requirementSummary.split('·')[0].trim();
             }
-            const productText = item.products?.[0] || 'Silicone sealants';
+            const productText = item.products?.[0] || 'Continuous Band Sealer';
 
             return (
               <TouchableOpacity
@@ -310,16 +310,16 @@ export const MyLeadsScreen: React.FC = () => {
                 onPress={() =>
                   navigation.navigate('LeadDetails', {
                     leadId: item.id,
-                    customerName: item.customerName,
+                    customerName: item.company || item.customerName,
                   })
                 }
               >
-                <Avatar name={item.customerName} size="md" />
+                <Avatar name={item.company || item.customerName} size="md" />
 
                 <View style={styles.leadInfo}>
                   <View style={styles.cardHeaderRow}>
                     <Text style={styles.customerName} numberOfLines={1}>
-                      {item.customerName}
+                      {item.company || item.customerName}
                     </Text>
 
                     <View style={[styles.statusBadge, { backgroundColor: badge.bg }]}>
@@ -329,6 +329,15 @@ export const MyLeadsScreen: React.FC = () => {
                       </Text>
                     </View>
                   </View>
+
+                  {item.company && (item.contactPerson || item.customerName) ? (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 2, gap: 4 }}>
+                      <Feather name="user" size={11} color={theme.colors.muted} />
+                      <Text style={{ fontSize: 12, color: theme.colors.muted }} numberOfLines={1}>
+                        {item.contactPerson || item.customerName}
+                      </Text>
+                    </View>
+                  ) : null}
 
                   <Text style={styles.reqLocation} numberOfLines={1}>
                     {locationText} · {productText}

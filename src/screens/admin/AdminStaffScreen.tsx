@@ -392,7 +392,7 @@ export const AdminStaffScreen: React.FC = () => {
                 <Feather name="mail" size={16} color={theme.colors.muted} style={styles.inputIcon} />
                 <TextInput
                   style={styles.textInput}
-                  placeholder="e.g. anand@sabeena.test"
+                  placeholder="e.g. anand@sabena.test"
                   placeholderTextColor="#94A3B8"
                   keyboardType="email-address"
                   autoCapitalize="none"

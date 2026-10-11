@@ -30,9 +30,7 @@ import { Customer, User, LeadSource } from '../../types';
 import { Card, Avatar, Toast, ToastType, EmptyState, Screen } from '../../components';
 import { useFloatingButtonBottom } from '../../hooks';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-
-const SOURCES: LeadSource[] = ['IndiaMART', 'Walk-in', 'Referral', 'WhatsApp', 'Website'];
-const PRODUCTS_LIST = ['Curtains', 'Blinds', 'Upholstery', 'Wallpapers', 'Mattresses', 'Rods & Tracks'];
+import { PRODUCT_CATEGORIES, LEAD_SOURCES } from '../../config/business';
 
 interface CustomerSection {
   title: string;
@@ -48,12 +46,13 @@ export const AdminCustomersScreen: React.FC = () => {
 
   // Add Customer Modal
   const [modalVisible, setModalVisible] = useState<boolean>(false);
+  const [companyName, setCompanyName] = useState<string>('');
   const [customerName, setCustomerName] = useState<string>('');
   const [phone, setPhone] = useState<string>('');
   const [email, setEmail] = useState<string>('');
   const [city, setCity] = useState<string>('Chennai');
   const [source, setSource] = useState<LeadSource>('Walk-in');
-  const [selectedProduct, setSelectedProduct] = useState<string>('Curtains');
+  const [selectedProduct, setSelectedProduct] = useState<string>(PRODUCT_CATEGORIES[0]);
   const [saving, setSaving] = useState<boolean>(false);
   const [formErrors, setFormErrors] = useState<{ name?: string; phone?: string }>({});
 
@@ -150,6 +149,7 @@ export const AdminCustomersScreen: React.FC = () => {
       const custRef = collection(db, 'customers');
       await addDoc(custRef, {
         name: customerName.trim(),
+        company: companyName.trim() || '',
         phone: cleanPhone,
         email: email.trim().toLowerCase() || '',
         city: city.trim() || 'Chennai',
@@ -165,6 +165,7 @@ export const AdminCustomersScreen: React.FC = () => {
 
       showToast(`Customer ${customerName} added successfully`, 'success');
       setModalVisible(false);
+      setCompanyName('');
       setCustomerName('');
       setPhone('');
       setEmail('');
@@ -183,13 +184,13 @@ export const AdminCustomersScreen: React.FC = () => {
   const headerNode = (
     <View style={styles.header}>
       <Text style={styles.headerTitle}>Customers</Text>
-      <Text style={styles.headerSubtitle}>{customers.length} total contacts</Text>
+      <Text style={styles.headerSubtitle}>{customers.length} registered packaging clients</Text>
 
       <View style={styles.searchBar}>
         <Feather name="search" size={16} color={theme.colors.muted} />
         <TextInput
           style={styles.searchInput}
-          placeholder="Search by name, phone, or location..."
+          placeholder="Search company, contact person, or location..."
           placeholderTextColor="#94A3B8"
           value={searchQuery}
           onChangeText={setSearchQuery}
@@ -242,38 +243,53 @@ export const AdminCustomersScreen: React.FC = () => {
               <Text style={styles.sectionHeaderText}>{title}</Text>
             </View>
           )}
-          renderItem={({ item }) => (
-            <Card style={styles.customerCard} padding="md">
-              <View style={styles.customerRow}>
-                <Avatar name={item.name} size="md" />
-                <View style={styles.customerInfo}>
-                  <Text style={styles.customerName} numberOfLines={1} ellipsizeMode="tail">{item.name}</Text>
-                  <Text style={styles.customerPhone} numberOfLines={1}>{item.phone}</Text>
-                  <View style={styles.tagRow}>
-                    <View style={styles.cityTag}>
-                      <Feather name="map-pin" size={10} color={theme.colors.muted} />
-                      <Text style={styles.cityTagText}>{item.city || 'Chennai'}</Text>
-                    </View>
-                    {item.productInterest ? (
-                      <View style={styles.productTag}>
-                        <Text style={styles.productTagText}>{item.productInterest}</Text>
+          renderItem={({ item }) => {
+            const displayName = item.company ? item.company : item.name;
+            const contactPerson = item.company ? item.name : null;
+
+            return (
+              <Card style={styles.customerCard} padding="md">
+                <View style={styles.customerRow}>
+                  <Avatar name={displayName} size="md" />
+                  <View style={styles.customerInfo}>
+                    <Text style={styles.customerName} numberOfLines={1} ellipsizeMode="tail">
+                      {displayName}
+                    </Text>
+                    {contactPerson ? (
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 1 }}>
+                        <Feather name="user" size={11} color={theme.colors.muted} />
+                        <Text style={{ fontFamily: theme.fonts.medium, fontSize: 12, color: theme.colors.muted }} numberOfLines={1}>
+                          {contactPerson}
+                        </Text>
                       </View>
                     ) : null}
+                    <Text style={styles.customerPhone} numberOfLines={1}>{item.phone}</Text>
+                    <View style={styles.tagRow}>
+                      <View style={styles.cityTag}>
+                        <Feather name="map-pin" size={10} color={theme.colors.muted} />
+                        <Text style={styles.cityTagText}>{item.city || 'Chennai'}</Text>
+                      </View>
+                      {item.productInterest ? (
+                        <View style={styles.productTag}>
+                          <Text style={styles.productTagText}>{item.productInterest}</Text>
+                        </View>
+                      ) : null}
+                    </View>
                   </View>
-                </View>
 
-                {/* Call Button */}
-                <TouchableOpacity
-                  style={styles.callBtn}
-                  onPress={() => handleCall(item.phone)}
-                  activeOpacity={0.8}
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                >
-                  <Feather name="phone" size={18} color={theme.colors.primary} />
-                </TouchableOpacity>
-              </View>
-            </Card>
-          )}
+                  {/* Call Button */}
+                  <TouchableOpacity
+                    style={styles.callBtn}
+                    onPress={() => handleCall(item.phone)}
+                    activeOpacity={0.8}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <Feather name="phone" size={18} color={theme.colors.primary} />
+                  </TouchableOpacity>
+                </View>
+              </Card>
+            );
+          }}
         />
       )}
       </Screen>
@@ -295,22 +311,35 @@ export const AdminCustomersScreen: React.FC = () => {
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { paddingBottom: Math.max(insets.bottom, 16) + 12 }]}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Add New Customer</Text>
+              <Text style={styles.modalTitle}>Add New Packaging Client</Text>
               <TouchableOpacity onPress={() => setModalVisible(false)}>
                 <Feather name="x" size={22} color={theme.colors.text} />
               </TouchableOpacity>
             </View>
 
             <View>
-              {/* Full Name */}
-              <Text style={styles.inputLabel}>
-                Customer Name <Text style={styles.requiredStar}>*</Text>
+              {/* Company Name */}
+              <Text style={styles.inputLabel}>Company Name</Text>
+              <View style={styles.inputWrapper}>
+                <Feather name="briefcase" size={16} color={theme.colors.muted} style={styles.inputIcon} />
+                <TextInput
+                  style={styles.textInput}
+                  placeholder="e.g. Kaveri Agro Foods Pvt Ltd"
+                  placeholderTextColor="#94A3B8"
+                  value={companyName}
+                  onChangeText={setCompanyName}
+                />
+              </View>
+
+              {/* Contact Person */}
+              <Text style={[styles.inputLabel, { marginTop: 12 }]}>
+                Contact Person <Text style={styles.requiredStar}>*</Text>
               </Text>
               <View style={[styles.inputWrapper, formErrors.name ? styles.inputErrorBorder : null]}>
                 <Feather name="user" size={16} color={theme.colors.muted} style={styles.inputIcon} />
                 <TextInput
                   style={styles.textInput}
-                  placeholder="e.g. Priya Sundaram"
+                  placeholder="e.g. Ramesh Kumar (Purchasing Mgr)"
                   placeholderTextColor="#94A3B8"
                   value={customerName}
                   onChangeText={(t) => {
@@ -342,12 +371,12 @@ export const AdminCustomersScreen: React.FC = () => {
               {formErrors.phone ? <Text style={styles.errorText}>{formErrors.phone}</Text> : null}
 
               {/* City / Location */}
-              <Text style={[styles.inputLabel, { marginTop: 12 }]}>City / Location</Text>
+              <Text style={[styles.inputLabel, { marginTop: 12 }]}>City / Industrial Area</Text>
               <View style={styles.inputWrapper}>
                 <Feather name="map-pin" size={16} color={theme.colors.muted} style={styles.inputIcon} />
                 <TextInput
                   style={styles.textInput}
-                  placeholder="e.g. Anna Nagar, Chennai"
+                  placeholder="e.g. Ambattur IE, Chennai"
                   placeholderTextColor="#94A3B8"
                   value={city}
                   onChangeText={setCity}
@@ -357,7 +386,7 @@ export const AdminCustomersScreen: React.FC = () => {
               {/* Product Interest */}
               <Text style={[styles.inputLabel, { marginTop: 12 }]}>Primary Product Interest</Text>
               <View style={styles.chipsRow}>
-                {PRODUCTS_LIST.slice(0, 4).map((p) => {
+                {PRODUCT_CATEGORIES.slice(0, 6).map((p) => {
                   const isSelected = selectedProduct === p;
                   return (
                     <TouchableOpacity

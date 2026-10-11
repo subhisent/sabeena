@@ -422,12 +422,20 @@ export const LeadDetailsScreen: React.FC = () => {
         <Card style={styles.identityCard} padding="lg">
           <View style={styles.identityHeader}>
             <View style={styles.identityLeft}>
-              <Text style={styles.customerName}>{lead?.customerName || initialName}</Text>
+              <Text style={styles.customerName}>{lead?.company || lead?.customerName || initialName}</Text>
+              {lead?.company && (lead?.contactPerson || lead?.customerName) ? (
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 2, gap: 4 }}>
+                  <Feather name="user" size={13} color={theme.colors.muted} />
+                  <Text style={{ fontSize: 13, color: theme.colors.muted, fontWeight: '500' }}>
+                    {lead.contactPerson || lead.customerName}
+                  </Text>
+                </View>
+              ) : null}
               <Text style={styles.customerLocation}>
                 {lead?.location?.address || 'Chennai'} · {lead?.source || 'Walk-in'}
               </Text>
             </View>
-            <Avatar name={lead?.customerName || 'Customer'} size="lg" />
+            <Avatar name={lead?.company || lead?.customerName || 'Customer'} size="lg" />
           </View>
 
           <View style={styles.badgeRow}>
@@ -565,6 +573,23 @@ export const LeadDetailsScreen: React.FC = () => {
           <Text style={styles.requirementText}>
             {lead?.requirementSummary || 'No specific requirement details provided.'}
           </Text>
+
+          {(lead?.industry || lead?.quantity) && (
+            <View style={{ flexDirection: 'row', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
+              {lead?.industry ? (
+                <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#EFF6FF', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, gap: 4 }}>
+                  <Feather name="briefcase" size={12} color={theme.colors.primary} />
+                  <Text style={{ fontSize: 12, color: theme.colors.primary, fontWeight: '600' }}>{lead.industry}</Text>
+                </View>
+              ) : null}
+              {lead?.quantity ? (
+                <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#F0FDF4', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, gap: 4 }}>
+                  <Feather name="box" size={12} color="#059669" />
+                  <Text style={{ fontSize: 12, color: '#059669', fontWeight: '600' }}>Qty: {lead.quantity}</Text>
+                </View>
+              ) : null}
+            </View>
+          )}
 
           {lead?.products && lead.products.length > 0 && (
             <View style={styles.productsContainer}>

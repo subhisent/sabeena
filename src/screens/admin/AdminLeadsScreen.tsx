@@ -115,7 +115,7 @@ export const AdminLeadsScreen: React.FC = () => {
         <Feather name="search" size={16} color={theme.colors.muted} />
         <TextInput
           style={styles.searchInput}
-          placeholder="Search leads, customer, rep..."
+          placeholder="Search company, contact person, model, rep..."
           placeholderTextColor="#94A3B8"
           value={searchQuery}
           onChangeText={setSearchQuery}
@@ -202,8 +202,8 @@ export const AdminLeadsScreen: React.FC = () => {
           </View>
         ) : filteredLeads.length === 0 ? (
           <EmptyState
-            title="No Leads Found"
-            description="No leads match your current filter or search criteria."
+            title="No Machinery Leads Found"
+            description="No packaging machine enquiries match your current filter or search criteria."
             iconName="user-check"
             actionLabel="Intake New Lead"
             onAction={() => navigation.navigate('AddLead')}
@@ -212,6 +212,9 @@ export const AdminLeadsScreen: React.FC = () => {
         ) : (
           filteredLeads.map((item) => {
             const statusConfig = getStatusBadge(item.status);
+            const titleName = item.company ? item.company : item.customerName;
+            const subtitleContact = item.company ? (item.contactPerson || item.customerName) : null;
+
             return (
               <Card
                 key={item.id}
@@ -220,15 +223,22 @@ export const AdminLeadsScreen: React.FC = () => {
                 onPress={() =>
                   navigation.navigate('LeadDetails', {
                     leadId: item.id,
-                    customerName: item.customerName,
+                    customerName: titleName,
                   })
                 }
               >
                 <View style={styles.cardHeader}>
                   <View style={styles.headerLeft}>
-                    <Text style={styles.customerName}>{item.customerName}</Text>
+                    <Text style={styles.customerName}>{titleName}</Text>
+                    {subtitleContact ? (
+                      <View style={styles.contactPersonRow}>
+                        <Feather name="user" size={11} color={theme.colors.muted} />
+                        <Text style={styles.contactPersonText}>{subtitleContact}</Text>
+                      </View>
+                    ) : null}
                     <Text style={styles.leadMeta}>
                       {item.phone} · {item.source}
+                      {item.industry ? ` · ${item.industry}` : ''}
                     </Text>
                   </View>
                   <View style={[styles.statusBadge, { backgroundColor: statusConfig.bg }]}>
@@ -237,6 +247,26 @@ export const AdminLeadsScreen: React.FC = () => {
                     </Text>
                   </View>
                 </View>
+
+                {/* Product Chips */}
+                {item.products && item.products.length > 0 && (
+                  <View style={styles.cardProductChipsRow}>
+                    {item.products.slice(0, 3).map((prod) => (
+                      <View key={prod} style={styles.cardProductChip}>
+                        <Text style={styles.cardProductChipText} numberOfLines={1}>
+                          {prod}
+                        </Text>
+                      </View>
+                    ))}
+                    {item.products.length > 3 && (
+                      <View style={styles.cardProductChipMore}>
+                        <Text style={styles.cardProductChipMoreText}>
+                          +{item.products.length - 3}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                )}
 
                 {item.requirementSummary ? (
                   <Text style={styles.requirementText} numberOfLines={2}>
@@ -395,11 +425,52 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: theme.colors.text,
   },
+  contactPersonRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 2,
+  },
+  contactPersonText: {
+    fontFamily: theme.fonts.medium,
+    fontSize: 12,
+    color: theme.colors.text,
+  },
   leadMeta: {
     fontFamily: theme.fonts.regular,
     fontSize: 12,
     color: theme.colors.muted,
     marginTop: 2,
+  },
+  cardProductChipsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: 8,
+  },
+  cardProductChip: {
+    backgroundColor: '#EFF6FF',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: theme.radius.pill,
+    borderWidth: 1,
+    borderColor: '#DBEAFE',
+  },
+  cardProductChipText: {
+    fontFamily: theme.fonts.medium,
+    fontSize: 11,
+    color: theme.colors.primary,
+  },
+  cardProductChipMore: {
+    backgroundColor: '#F1F5F9',
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: theme.radius.pill,
+  },
+  cardProductChipMoreText: {
+    fontFamily: theme.fonts.semiBold,
+    fontSize: 10,
+    color: theme.colors.muted,
   },
   statusBadge: {
     paddingHorizontal: 8,

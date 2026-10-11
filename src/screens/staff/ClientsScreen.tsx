@@ -130,11 +130,19 @@ export const ClientsScreen: React.FC = () => {
           }
           renderItem={({ item }) => (
             <View style={styles.clientCard}>
-              <Avatar name={item.name} size="md" />
+              <Avatar name={item.company || item.name} size="md" />
               <View style={styles.clientInfo}>
-                <Text style={styles.clientName}>{item.name}</Text>
+                <Text style={styles.clientName}>{item.company || item.name}</Text>
+                {item.company ? (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 1, gap: 4 }}>
+                    <Feather name="user" size={11} color={theme.colors.muted} />
+                    <Text style={{ fontSize: 12, color: theme.colors.muted }} numberOfLines={1}>
+                      {item.name}
+                    </Text>
+                  </View>
+                ) : null}
                 <Text style={styles.clientReq}>
-                  {item.city ? `${item.city} · ` : ''}{item.productInterest || 'General Inquiry'}
+                  {item.city ? `${item.city} · ` : ''}{item.productInterest || 'Packaging Machinery'}
                 </Text>
                 <Text style={styles.clientPhone}>{item.phone}</Text>
               </View>

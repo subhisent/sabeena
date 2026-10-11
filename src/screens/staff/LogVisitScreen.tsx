@@ -263,7 +263,7 @@ export const LogVisitScreen: React.FC = () => {
         <Text style={styles.sectionTitle}>Notes</Text>
         <TextInput
           style={styles.textArea}
-          placeholder="Sample given. Share competitive rate card before the next call."
+          placeholder="Conducted machine trial. Share formal machinery quote with warranty details before next call."
           placeholderTextColor={theme.colors.muted}
           multiline={true}
           numberOfLines={3}

@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "Sabena CRM",
-    "slug": "sabeena",
+    "name": "Sabena Sealers CRM",
+    "slug": "sabena-crm",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -11,7 +11,8 @@
       "bundleIdentifier": "com.sabeenasealers.crm"
     },
     "android": {
-      "package": "com.sabeenasealers.crm",
+      "package": "com.sabenasealers.crm",
+      "versionCode": 1,
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -20,6 +21,8 @@
       },
       "predictiveBackGestureEnabled": false,
       "permissions": [
+        "RECEIVE_BOOT_COMPLETED",
+        "VIBRATE",
         "RECEIVE_BOOT_COMPLETED",
         "VIBRATE"
       ]
@@ -40,8 +43,15 @@
     ],
     "extra": {
       "eas": {
-        "projectId": "375fe5ef-0348-4a82-bebd-8935fffcf276"
+        "projectId": "626f09e1-6b72-45f5-a5c2-5d46fcd007b0"
       }
+    },
+    "owner": "sanjaysubhii",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/626f09e1-6b72-45f5-a5c2-5d46fcd007b0"
     }
   }
 }

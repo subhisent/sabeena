@@ -171,7 +171,9 @@ export const StaffTasksScreen: React.FC = () => {
                     rawId: ld.id,
                     leadId: ld.id,
                     customerId: lData.customerId,
-                    customerName: lData.customerName || 'Lead',
+                    customerName: lData.company
+                      ? (lData.contactPerson ? `${lData.company} (${lData.contactPerson})` : lData.company)
+                      : (lData.customerName || 'Lead'),
                     customerPhone: lData.phone || '',
                     taskType: (lData.priority === 'Urgent' ? 'Visit' : 'Call') as any,
                     location: loc,

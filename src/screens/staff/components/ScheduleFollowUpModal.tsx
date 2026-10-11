@@ -299,7 +299,7 @@ export const ScheduleFollowUpModal: React.FC<ScheduleFollowUpModalProps> = ({
             <Text style={styles.sectionLabel}>Note (optional)</Text>
             <TextInput
               style={styles.noteInput}
-              placeholder="Share competitive rate card"
+              placeholder="Share machinery quotation & technical specs"
               placeholderTextColor={theme.colors.muted}
               value={note}
               onChangeText={setNote}

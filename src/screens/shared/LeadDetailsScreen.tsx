@@ -83,7 +83,7 @@ const SAMPLE_ACTIVITIES: Activity[] = [
   {
     id: 'act-3',
     title: 'Visit logged: Sample given',
-    note: 'Sample given. Share competitive rate card before next call.',
+    note: 'Machine demo completed. Share quotation before next call.',
     authorId: 'STF001',
     authorName: 'Arun K',
     type: 'note',
@@ -175,19 +175,23 @@ export const LeadDetailsScreen: React.FC = () => {
               setLead({
                 id: leadId,
                 customerId: 'cust-default',
-                customerName: initialCustomerName || 'Anand Interiors',
+                company: 'Sri Balaji Foods',
+                contactPerson: 'Senthil Kumar',
+                industry: 'Food & Spices',
+                customerName: initialCustomerName || 'Sri Balaji Foods',
                 phone: '+91 90031 88450',
-                source: 'Walk-in',
+                source: 'IndiaMART',
                 receivedDate: Timestamp.now(),
-                requirementSummary: 'Velachery · Acrylic sealants (120 tubes)',
-                products: ['Acrylic sealants (120 tubes)'],
-                estimatedValue: 180000,
+                requirementSummary: 'Continuous Band Sealer with Nitrogen Flushing (2 units)',
+                products: ['Continuous Band Sealer'],
+                quantity: '2 units',
+                estimatedValue: 95000,
                 status: 'In Progress',
-                priority: 'Medium',
+                priority: 'High',
                 assignedTo: user?.uid || 'STF001',
                 assignedToName: user?.name || 'Arun K',
                 followUpAt: new Timestamp(Timestamp.now().seconds + 86400, 0),
-                location: { address: 'Plot 42, 2nd Avenue, Velachery, Chennai' },
+                location: { address: 'Plot 42, Sidco Industrial Estate, Ambattur, Chennai' },
                 createdBy: 'admin',
                 createdAt: Timestamp.now(),
                 updatedAt: Timestamp.now(),
@@ -545,14 +549,16 @@ export const LeadDetailsScreen: React.FC = () => {
     );
   }
 
-  const customerName = lead?.customerName || initialCustomerName || 'Lead Details';
+  const primaryTitle = lead?.company || lead?.customerName || initialCustomerName || 'Lead Details';
+  const customerName = primaryTitle;
+  const subtitleContact = lead?.company && (lead?.contactPerson || lead?.customerName) ? (lead.contactPerson || lead.customerName) : null;
   const cityOrArea = lead?.location?.address
     ? lead.location.address.split(',')[0].trim()
-    : 'Velachery';
+    : 'Ambattur';
   const displayProducts =
     lead?.products && lead.products.length > 0
       ? lead.products.join(', ')
-      : lead?.requirementSummary || 'Acrylic sealants';
+      : lead?.requirementSummary || 'Continuous Band Sealer';
 
   const renderFooter = () => (
     <View style={styles.bottomActionBar}>
@@ -612,13 +618,21 @@ export const LeadDetailsScreen: React.FC = () => {
       {/* Hero Section */}
       <View style={styles.heroSection}>
           <Avatar
-            name={customerName}
+            name={primaryTitle}
             size="xl"
             showStatusDot={true}
             isOnline={lead?.status !== 'Lost'}
             style={styles.heroAvatar}
           />
-          <Text style={styles.customerTitle}>{customerName}</Text>
+          <Text style={styles.customerTitle}>{primaryTitle}</Text>
+          {subtitleContact ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4, gap: 4 }}>
+              <Feather name="user" size={14} color={theme.colors.muted} />
+              <Text style={{ fontSize: 14, color: theme.colors.muted, fontWeight: '500' }}>
+                {subtitleContact}
+              </Text>
+            </View>
+          ) : null}
           <Text style={styles.contactSubtitle}>
             {lead?.phone || '+91 90031 88450'} · {cityOrArea}
           </Text>
@@ -757,6 +771,22 @@ export const LeadDetailsScreen: React.FC = () => {
               </Text>
             </View>
           </View>
+
+          {(lead?.industry || lead?.quantity) && (
+            <>
+              <View style={styles.gridDivider} />
+              <View style={styles.gridRow}>
+                <View style={styles.gridColumn}>
+                  <Text style={styles.gridLabel}>Industry</Text>
+                  <Text style={styles.gridValue}>{lead.industry || 'Packaging'}</Text>
+                </View>
+                <View style={styles.gridColumn}>
+                  <Text style={styles.gridLabel}>Quantity</Text>
+                  <Text style={styles.gridValue}>{lead.quantity || '1 unit'}</Text>
+                </View>
+              </View>
+            </>
+          )}
 
           <View style={styles.gridDivider} />
 
