@@ -47,7 +47,10 @@ import {
   SectionHeader,
   Toast,
   ToastType,
+  Screen,
+  ScreenHeader,
 } from '../../components';
+import { SCREEN_HORIZONTAL_PADDING } from '../../constants';
 import { UpdateStatusSheet, AddNoteSheet } from './components';
 import { SAMPLE_LEADS } from '../../hooks/useMyLeads';
 
@@ -551,48 +554,40 @@ export const LeadDetailsScreen: React.FC = () => {
       ? lead.products.join(', ')
       : lead?.requirementSummary || 'Acrylic sealants';
 
-  return (
-    <View style={styles.screenContainer}>
-      {/* Animated Top Toast */}
-      <Toast
-        visible={toast.visible}
-        message={toast.message}
-        type={toast.type}
-        onDismiss={() => setToast((prev) => ({ ...prev, visible: false }))}
-        style={{ top: insets.top + 10 }}
+  const renderFooter = () => (
+    <View style={styles.bottomActionBar}>
+      <AppButton
+        title="Update Status"
+        onPress={handleOpenStatusSheet}
+        variant="primary"
+        style={styles.bottomBarButton}
       />
+      <AppButton
+        title="Log Call"
+        onPress={() => {
+          if (!isAssignedToCurrentUser) {
+            showToast('You can only log calls for leads assigned to you.', 'error');
+            return;
+          }
+          setCallModalVisible(true);
+        }}
+        variant="outline"
+        style={styles.bottomBarButton}
+      />
+    </View>
+  );
 
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={[
-          styles.scrollContent,
-          { paddingTop: insets.top, paddingBottom: insets.bottom + 90 },
-        ]}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Top Gradient Background */}
-        <LinearGradient
-          colors={['#E0E7FF', '#EFF6FF', '#F7F8FA']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 0, y: 1 }}
-          style={styles.gradientHeader}
-        />
-
-        {/* Top Bar / Navigation */}
-        <View style={styles.topBar}>
-          <TouchableOpacity
-            onPress={() => navigation.goBack()}
-            style={styles.backButton}
-            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-            activeOpacity={0.7}
-          >
-            <Feather name="arrow-left" size={20} color={theme.colors.text} />
-          </TouchableOpacity>
-
-          <Text style={styles.topBarTitle}>Lead details</Text>
-
-          <View style={styles.trailingActionContainer}>
-            {isAdmin ? (
+  return (
+    <Screen
+      hasTabBar={false}
+      scroll
+      contentContainerStyle={styles.scrollContent}
+      header={
+        <ScreenHeader
+          title="Lead details"
+          onBack={() => navigation.goBack()}
+          rightAction={
+            isAdmin ? (
               <TouchableOpacity
                 style={styles.actionIconButton}
                 onPress={() => Alert.alert('Admin Options', 'Lead assignment & settings.')}
@@ -600,14 +595,22 @@ export const LeadDetailsScreen: React.FC = () => {
               >
                 <Feather name="more-vertical" size={20} color={theme.colors.text} />
               </TouchableOpacity>
-            ) : (
-              <View style={styles.emptyActionPlaceholder} />
-            )}
-          </View>
-        </View>
+            ) : undefined
+          }
+        />
+      }
+      footer={renderFooter()}
+    >
+      {/* Animated Top Toast */}
+      <Toast
+        visible={toast.visible}
+        message={toast.message}
+        type={toast.type}
+        onDismiss={() => setToast((prev) => ({ ...prev, visible: false }))}
+      />
 
-        {/* Hero Section */}
-        <View style={styles.heroSection}>
+      {/* Hero Section */}
+      <View style={styles.heroSection}>
           <Avatar
             name={customerName}
             size="xl"
@@ -845,34 +848,6 @@ export const LeadDetailsScreen: React.FC = () => {
             })}
           </View>
         </Card>
-      </ScrollView>
-
-      {/* Sticky Bottom Action Bar */}
-      <View
-        style={[
-          styles.bottomActionBar,
-          { paddingBottom: Math.max(insets.bottom, 12) },
-        ]}
-      >
-        <AppButton
-          title="Update Status"
-          onPress={handleOpenStatusSheet}
-          variant="primary"
-          style={styles.bottomBarButton}
-        />
-        <AppButton
-          title="Log Call"
-          onPress={() => {
-            if (!isAssignedToCurrentUser) {
-              showToast('You can only log calls for leads assigned to you.', 'error');
-              return;
-            }
-            setCallModalVisible(true);
-          }}
-          variant="outline"
-          style={styles.bottomBarButton}
-        />
-      </View>
 
       {/* UpdateStatusSheet Bottom Sheet Component */}
       {lead && (
@@ -914,7 +889,10 @@ export const LeadDetailsScreen: React.FC = () => {
           activeOpacity={1}
           onPress={() => setCallModalVisible(false)}
         >
-          <View style={styles.modalSheet} onStartShouldSetResponder={() => true}>
+          <View
+            style={[styles.modalSheet, { paddingBottom: Math.max(insets.bottom, 16) + 12 }]}
+            onStartShouldSetResponder={() => true}
+          >
             <View style={styles.modalGrabber} />
             <Text style={styles.modalSheetTitle}>Log Call</Text>
             <Text style={styles.modalSheetSubtitle}>
@@ -991,7 +969,10 @@ export const LeadDetailsScreen: React.FC = () => {
           activeOpacity={1}
           onPress={() => setRescheduleModalVisible(false)}
         >
-          <View style={styles.modalSheet} onStartShouldSetResponder={() => true}>
+          <View
+            style={[styles.modalSheet, { paddingBottom: Math.max(insets.bottom, 16) + 12 }]}
+            onStartShouldSetResponder={() => true}
+          >
             <View style={styles.modalGrabber} />
             <Text style={styles.modalSheetTitle}>Reschedule Follow-up</Text>
             <Text style={styles.modalSheetSubtitle}>
@@ -1034,11 +1015,12 @@ export const LeadDetailsScreen: React.FC = () => {
         onRequestClose={() => setAllActivitiesModalVisible(false)}
       >
         <View style={styles.fullModalContainer}>
-          <View style={[styles.fullModalHeader, { paddingTop: insets.top + 10 }]}>
+          <View style={[styles.fullModalHeader, { paddingTop: Math.max(insets.top, 24) + 8 }]}>
             <Text style={styles.fullModalTitle}>Activity History</Text>
             <TouchableOpacity
               onPress={() => setAllActivitiesModalVisible(false)}
               style={styles.fullModalCloseButton}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
               <Feather name="x" size={20} color={theme.colors.text} />
             </TouchableOpacity>
@@ -1080,7 +1062,7 @@ export const LeadDetailsScreen: React.FC = () => {
           </ScrollView>
         </View>
       </Modal>
-    </View>
+    </Screen>
   );
 };
 
@@ -1105,7 +1087,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingHorizontal: 16,
+    paddingHorizontal: SCREEN_HORIZONTAL_PADDING,
+    paddingBottom: 24,
   },
   gradientHeader: {
     position: 'absolute',
@@ -1375,16 +1358,12 @@ const styles = StyleSheet.create({
     color: theme.colors.muted,
   },
   bottomActionBar: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
     backgroundColor: theme.colors.card,
     borderTopWidth: 1,
     borderTopColor: theme.colors.border,
     flexDirection: 'row',
-    paddingHorizontal: 16,
-    paddingTop: 12,
+    paddingHorizontal: SCREEN_HORIZONTAL_PADDING,
+    paddingVertical: 12,
     gap: 12,
     ...theme.shadows.elevated,
   },
@@ -1436,12 +1415,14 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   outcomeChip: {
-    paddingVertical: 6,
+    paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 20,
     backgroundColor: theme.colors.background,
     borderWidth: 1,
     borderColor: theme.colors.border,
+    minHeight: 44,
+    justifyContent: 'center',
   },
   outcomeChipSelected: {
     backgroundColor: theme.colors.black,
@@ -1495,9 +1476,9 @@ const styles = StyleSheet.create({
     color: theme.colors.text,
   },
   fullModalCloseButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    minWidth: 44,
+    minHeight: 44,
+    borderRadius: 22,
     backgroundColor: theme.colors.background,
     alignItems: 'center',
     justifyContent: 'center',

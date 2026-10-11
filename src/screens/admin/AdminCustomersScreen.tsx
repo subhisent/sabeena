@@ -27,7 +27,9 @@ import { theme } from '../../theme';
 import { db } from '../../services/firebase';
 import { useAuth } from '../../context/AuthContext';
 import { Customer, User, LeadSource } from '../../types';
-import { Card, Avatar, Toast, ToastType, EmptyState } from '../../components';
+import { Card, Avatar, Toast, ToastType, EmptyState, Screen } from '../../components';
+import { useFloatingButtonBottom } from '../../hooks';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const SOURCES: LeadSource[] = ['IndiaMART', 'Walk-in', 'Referral', 'WhatsApp', 'Website'];
 const PRODUCTS_LIST = ['Curtains', 'Blinds', 'Upholstery', 'Wallpapers', 'Mattresses', 'Rods & Tracks'];
@@ -175,29 +177,43 @@ export const AdminCustomersScreen: React.FC = () => {
     }
   };
 
+  const insets = useSafeAreaInsets();
+  const floatingBottom = useFloatingButtonBottom(true);
+
+  const headerNode = (
+    <View style={styles.header}>
+      <Text style={styles.headerTitle}>Customers</Text>
+      <Text style={styles.headerSubtitle}>{customers.length} total contacts</Text>
+
+      <View style={styles.searchBar}>
+        <Feather name="search" size={16} color={theme.colors.muted} />
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Search by name, phone, or location..."
+          placeholderTextColor="#94A3B8"
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+        />
+        {searchQuery.length > 0 && (
+          <TouchableOpacity
+            onPress={() => setSearchQuery('')}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            style={styles.clearSearchBtn}
+          >
+            <Feather name="x" size={16} color={theme.colors.muted} />
+          </TouchableOpacity>
+        )}
+      </View>
+    </View>
+  );
+
   return (
     <View style={styles.container}>
-      {/* Header with Search */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Customers</Text>
-        <Text style={styles.headerSubtitle}>{customers.length} total contacts</Text>
-
-        <View style={styles.searchBar}>
-          <Feather name="search" size={16} color={theme.colors.muted} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search by name, phone, or location..."
-            placeholderTextColor="#94A3B8"
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-          />
-          {searchQuery.length > 0 && (
-            <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-              <Feather name="x" size={16} color={theme.colors.muted} />
-            </TouchableOpacity>
-          )}
-        </View>
-      </View>
+      <Screen
+        scroll={false}
+        hasTabBar={true}
+        header={headerNode}
+      >
 
       {/* Customer List */}
       {loading ? (
@@ -220,7 +236,7 @@ export const AdminCustomersScreen: React.FC = () => {
           sections={sections}
           keyExtractor={(item) => item.id}
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={[styles.listContent, { paddingBottom: floatingBottom + 64 }]}
           renderSectionHeader={({ section: { title } }) => (
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionHeaderText}>{title}</Text>
@@ -231,8 +247,8 @@ export const AdminCustomersScreen: React.FC = () => {
               <View style={styles.customerRow}>
                 <Avatar name={item.name} size="md" />
                 <View style={styles.customerInfo}>
-                  <Text style={styles.customerName}>{item.name}</Text>
-                  <Text style={styles.customerPhone}>{item.phone}</Text>
+                  <Text style={styles.customerName} numberOfLines={1} ellipsizeMode="tail">{item.name}</Text>
+                  <Text style={styles.customerPhone} numberOfLines={1}>{item.phone}</Text>
                   <View style={styles.tagRow}>
                     <View style={styles.cityTag}>
                       <Feather name="map-pin" size={10} color={theme.colors.muted} />
@@ -251,17 +267,19 @@ export const AdminCustomersScreen: React.FC = () => {
                   style={styles.callBtn}
                   onPress={() => handleCall(item.phone)}
                   activeOpacity={0.8}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 >
-                  <Feather name="phone" size={16} color={theme.colors.primary} />
+                  <Feather name="phone" size={18} color={theme.colors.primary} />
                 </TouchableOpacity>
               </View>
             </Card>
           )}
         />
       )}
+      </Screen>
 
       {/* Floating Add Customer Button */}
-      <View style={styles.bottomBar}>
+      <View style={[styles.bottomBar, { bottom: floatingBottom }]}>
         <TouchableOpacity
           style={styles.addCustomerBtn}
           onPress={() => setModalVisible(true)}
@@ -275,7 +293,7 @@ export const AdminCustomersScreen: React.FC = () => {
       {/* Add Customer Modal */}
       <Modal visible={modalVisible} transparent animationType="slide">
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
+          <View style={[styles.modalContent, { paddingBottom: Math.max(insets.bottom, 16) + 12 }]}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Add New Customer</Text>
               <TouchableOpacity onPress={() => setModalVisible(false)}>
@@ -391,20 +409,16 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.background,
   },
   header: {
-    paddingHorizontal: theme.spacing.md,
-    paddingTop: Platform.OS === 'ios' ? 52 : 24,
-    paddingBottom: 12,
-    backgroundColor: theme.colors.card,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.border,
+    paddingVertical: 8,
+    backgroundColor: 'transparent',
   },
   headerTitle: {
     fontFamily: theme.fonts.bold,
-    fontSize: 22,
+    fontSize: 24,
     color: theme.colors.text,
   },
   headerSubtitle: {
-    fontFamily: theme.fonts.medium,
+    fontFamily: theme.fonts.regular,
     fontSize: 13,
     color: theme.colors.muted,
     marginTop: 2,
@@ -413,10 +427,12 @@ const styles = StyleSheet.create({
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F1F5F9',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: theme.colors.border,
     borderRadius: theme.radius.pill,
     paddingHorizontal: 14,
-    height: 42,
+    height: 44,
   },
   searchInput: {
     flex: 1,
@@ -424,6 +440,12 @@ const styles = StyleSheet.create({
     fontFamily: theme.fonts.regular,
     fontSize: 13,
     color: theme.colors.text,
+  },
+  clearSearchBtn: {
+    minWidth: 44,
+    minHeight: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   loadingBox: {
     paddingVertical: 50,

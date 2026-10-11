@@ -1,22 +1,34 @@
 import React from 'react';
 import { StyleSheet } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { theme } from '../../theme';
-import { ScreenContainer, EmptyState } from '../../components';
+import { Screen, ScreenHeader, EmptyState } from '../../components';
+import { SCREEN_HORIZONTAL_PADDING } from '../../constants';
 
 export const AdminTasksScreen: React.FC = () => {
+  const navigation = useNavigation();
+
   return (
-    <ScreenContainer scrollable={true}>
+    <Screen
+      hasTabBar={false}
+      scroll
+      header={<ScreenHeader title="Team Tasks" onBack={() => navigation.goBack()} />}
+      contentContainerStyle={styles.content}
+    >
       <EmptyState
         title="No Tasks Assigned"
         description="Assigned follow-ups, calls, and pending tasks across all staff will be tracked here."
         iconName="check-square"
         style={styles.emptyCard}
       />
-    </ScreenContainer>
+    </Screen>
   );
 };
 
 const styles = StyleSheet.create({
+  content: {
+    padding: SCREEN_HORIZONTAL_PADDING,
+  },
   emptyCard: {
     backgroundColor: theme.colors.card,
     borderRadius: theme.radius.card,

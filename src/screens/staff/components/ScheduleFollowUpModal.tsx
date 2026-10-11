@@ -9,6 +9,7 @@ import {
   ScrollView,
   ActivityIndicator,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { doc, updateDoc, collection, addDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
 
@@ -31,6 +32,7 @@ export const ScheduleFollowUpModal: React.FC<ScheduleFollowUpModalProps> = ({
   onClose,
   onSuccess,
 }) => {
+  const insets = useSafeAreaInsets();
   const { user } = useAuth();
 
   const [followUpType, setFollowUpType] = useState<'Call' | 'Visit' | 'Send quote'>('Call');
@@ -144,7 +146,7 @@ export const ScheduleFollowUpModal: React.FC<ScheduleFollowUpModalProps> = ({
   return (
     <Modal visible={visible} transparent={true} animationType="slide" onRequestClose={onClose}>
       <View style={styles.overlay}>
-        <View style={styles.sheet}>
+        <View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, 16) + 16 }]}>
           <View style={styles.notch} />
 
           <View style={styles.header}>
@@ -365,7 +367,10 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   closeBtn: {
-    padding: 6,
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   scroll: {
     paddingTop: theme.spacing.md,
@@ -388,8 +393,10 @@ const styles = StyleSheet.create({
   },
   typePill: {
     flex: 1,
+    minHeight: 44,
     paddingVertical: 10,
     alignItems: 'center',
+    justifyContent: 'center',
     borderRadius: theme.radius.pill,
   },
   typePillSelected: {
@@ -415,12 +422,15 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   presetChip: {
-    paddingVertical: 8,
+    minHeight: 44,
+    paddingVertical: 10,
     paddingHorizontal: 16,
     borderRadius: theme.radius.pill,
     borderWidth: 1,
     borderColor: theme.colors.border,
     backgroundColor: theme.colors.card,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   presetChipSelected: {
     backgroundColor: theme.colors.black,
@@ -554,7 +564,8 @@ const styles = StyleSheet.create({
   saveBtn: {
     backgroundColor: theme.colors.black,
     borderRadius: theme.radius.pill,
-    paddingVertical: 16,
+    paddingVertical: 14,
+    minHeight: 48,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 8,

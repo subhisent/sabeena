@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
   TouchableOpacity,
   ActivityIndicator,
 } from 'react-native';
@@ -15,6 +14,7 @@ import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
 import { theme } from '../../theme';
 import { db } from '../../services/firebase';
 import { Activity } from '../../types';
+import { Screen, ScreenHeader } from '../../components';
 
 export type ActivityCategory = 'All' | 'Calls' | 'Messages' | 'Visits' | 'Status';
 
@@ -96,95 +96,91 @@ export const StaffActivityScreen: React.FC = () => {
   };
 
   return (
-    <View style={styles.container}>
-      {/* Top Bar */}
-      <View style={styles.topBar}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.iconBtn}>
-          <Feather name="arrow-left" size={22} color={theme.colors.text} />
-        </TouchableOpacity>
-        <Text style={styles.topBarTitle}>All activity</Text>
-        <TouchableOpacity style={styles.iconBtn}>
-          <Feather name="more-vertical" size={20} color={theme.colors.text} />
-        </TouchableOpacity>
+    <Screen
+      hasTabBar={false}
+      scroll
+      header={
+        <ScreenHeader
+          title="All activity"
+          onBack={() => navigation.goBack()}
+          rightElement={
+            <TouchableOpacity style={styles.iconBtn} activeOpacity={0.7}>
+              <Feather name="more-vertical" size={20} color={theme.colors.text} />
+            </TouchableOpacity>
+          }
+        />
+      }
+      contentContainerStyle={styles.scrollContent}
+      footer={
+        <View style={styles.stickyFooter}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.backButtonText}>Back to lead</Text>
+          </TouchableOpacity>
+        </View>
+      }
+    >
+      <Text style={styles.customerHeader}>{customerName}</Text>
+
+      {/* Filter Pills */}
+      <View style={styles.filterRow}>
+        {(['All', 'Calls', 'Messages', 'Visits', 'Status'] as const).map((cat) => {
+          const isSel = category === cat;
+          return (
+            <TouchableOpacity
+              key={cat}
+              style={[styles.filterPill, isSel && styles.filterPillSelected]}
+              onPress={() => setCategory(cat)}
+              activeOpacity={0.8}
+            >
+              <Text style={[styles.filterPillText, isSel && styles.filterPillTextSelected]}>
+                {cat}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
       </View>
 
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        <Text style={styles.customerHeader}>{customerName}</Text>
+      {/* Timeline list */}
+      {loading ? (
+        <ActivityIndicator size="small" color={theme.colors.text} style={{ marginTop: 40 }} />
+      ) : filtered.length === 0 ? (
+        <View style={styles.emptyContainer}>
+          <Feather name="clock" size={32} color={theme.colors.muted} />
+          <Text style={styles.emptyTitle}>No activity logged</Text>
+          <Text style={styles.emptySub}>Calls, visits and status changes will be recorded here.</Text>
+        </View>
+      ) : (
+        <View style={styles.timelineList}>
+          {filtered.map((item, index) => {
+            const iconName = getActivityIcon(item.type, item.title) as any;
+            const isLast = index === filtered.length - 1;
 
-        {/* Filter Pills */}
-        <View style={styles.filterRow}>
-          {(['All', 'Calls', 'Messages', 'Visits', 'Status'] as const).map((cat) => {
-            const isSel = category === cat;
             return (
-              <TouchableOpacity
-                key={cat}
-                style={[styles.filterPill, isSel && styles.filterPillSelected]}
-                onPress={() => setCategory(cat)}
-                activeOpacity={0.8}
-              >
-                <Text style={[styles.filterPillText, isSel && styles.filterPillTextSelected]}>
-                  {cat}
-                </Text>
-              </TouchableOpacity>
+              <View key={item.id} style={styles.timelineItem}>
+                <View style={styles.iconCol}>
+                  <View style={styles.iconCircle}>
+                    <Feather name={iconName} size={16} color={theme.colors.muted} />
+                  </View>
+                  {!isLast && <View style={styles.verticalLine} />}
+                </View>
+
+                <View style={styles.contentCol}>
+                  <Text style={styles.itemTitle}>{item.title}</Text>
+                  {item.note ? <Text style={styles.itemNote}>{item.note}</Text> : null}
+                  <Text style={styles.itemMeta}>
+                    {item.createdAt?.toDate ? formatActivityDate(item.createdAt.toDate()) : 'Recently'} · {item.authorName}
+                  </Text>
+                </View>
+              </View>
             );
           })}
         </View>
-
-        {/* Timeline list */}
-        {loading ? (
-          <ActivityIndicator size="small" color={theme.colors.text} style={{ marginTop: 40 }} />
-        ) : filtered.length === 0 ? (
-          <View style={styles.emptyContainer}>
-            <Feather name="clock" size={32} color={theme.colors.muted} />
-            <Text style={styles.emptyTitle}>No activity logged</Text>
-            <Text style={styles.emptySub}>Calls, visits and status changes will be recorded here.</Text>
-          </View>
-        ) : (
-          <View style={styles.timelineList}>
-            {filtered.map((item, index) => {
-              const iconName = getActivityIcon(item.type, item.title) as any;
-              const isLast = index === filtered.length - 1;
-
-              return (
-                <View key={item.id} style={styles.timelineItem}>
-                  <View style={styles.iconCol}>
-                    <View style={styles.iconCircle}>
-                      <Feather name={iconName} size={16} color={theme.colors.muted} />
-                    </View>
-                    {!isLast && <View style={styles.verticalLine} />}
-                  </View>
-
-                  <View style={styles.contentCol}>
-                    <Text style={styles.itemTitle}>{item.title}</Text>
-                    {item.note ? <Text style={styles.itemNote}>{item.note}</Text> : null}
-                    <Text style={styles.itemMeta}>
-                      {item.createdAt?.toDate ? formatActivityDate(item.createdAt.toDate()) : 'Recently'} · {item.authorName}
-                    </Text>
-                  </View>
-                </View>
-              );
-            })}
-          </View>
-        )}
-
-        <View style={styles.bottomSpacer} />
-      </ScrollView>
-
-      {/* Sticky Bottom Action */}
-      <View style={styles.stickyFooter}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-          activeOpacity={0.85}
-        >
-          <Text style={styles.backButtonText}>Back to lead</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
+      )}
+    </Screen>
   );
 };
 
@@ -212,13 +208,15 @@ const styles = StyleSheet.create({
     color: theme.colors.text,
   },
   iconBtn: {
-    padding: 6,
-  },
-  scrollView: {
-    flex: 1,
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   scrollContent: {
-    padding: theme.spacing.md,
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 24,
   },
   customerHeader: {
     fontFamily: theme.fonts.bold,
@@ -233,12 +231,15 @@ const styles = StyleSheet.create({
     marginBottom: theme.spacing.lg,
   },
   filterPill: {
-    paddingVertical: 8,
+    minHeight: 44,
+    paddingVertical: 10,
     paddingHorizontal: 16,
     borderRadius: theme.radius.pill,
     borderWidth: 1,
     borderColor: theme.colors.border,
     backgroundColor: theme.colors.card,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   filterPillSelected: {
     backgroundColor: theme.colors.black,
@@ -320,23 +321,18 @@ const styles = StyleSheet.create({
     color: theme.colors.muted,
     marginTop: 4,
   },
-  bottomSpacer: {
-    height: 90,
-  },
   stickyFooter: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
     backgroundColor: theme.colors.card,
-    padding: theme.spacing.md,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
     borderTopWidth: 1,
     borderTopColor: theme.colors.border,
   },
   backButton: {
     backgroundColor: theme.colors.black,
     borderRadius: theme.radius.pill,
-    paddingVertical: 16,
+    paddingVertical: 14,
+    minHeight: 48,
     alignItems: 'center',
     justifyContent: 'center',
   },

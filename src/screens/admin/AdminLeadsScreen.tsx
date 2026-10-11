@@ -17,7 +17,8 @@ import { collection, onSnapshot } from 'firebase/firestore';
 import { theme } from '../../theme';
 import { db } from '../../services/firebase';
 import { Lead, LeadStatus } from '../../types';
-import { Card, Avatar, EmptyState } from '../../components';
+import { Card, Avatar, EmptyState, Screen } from '../../components';
+import { useFloatingButtonBottom } from '../../hooks';
 
 type StatusFilter = 'All' | LeadStatus;
 
@@ -102,29 +103,32 @@ export const AdminLeadsScreen: React.FC = () => {
     }
   };
 
-  return (
-    <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>All Leads</Text>
-        <Text style={styles.headerSubtitle}>{leads.length} incoming leads in pipeline</Text>
+  const floatingBottom = useFloatingButtonBottom(true);
 
-        {/* Search Bar */}
-        <View style={styles.searchBar}>
-          <Feather name="search" size={16} color={theme.colors.muted} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search leads, customer, rep..."
-            placeholderTextColor="#94A3B8"
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-          />
-          {searchQuery.length > 0 && (
-            <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-              <Feather name="x" size={16} color={theme.colors.muted} />
-            </TouchableOpacity>
-          )}
-        </View>
+  const headerNode = (
+    <View style={styles.header}>
+      <Text style={styles.headerTitle}>All Leads</Text>
+      <Text style={styles.headerSubtitle}>{leads.length} incoming leads in pipeline</Text>
+
+      {/* Search Bar */}
+      <View style={styles.searchBar}>
+        <Feather name="search" size={16} color={theme.colors.muted} />
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Search leads, customer, rep..."
+          placeholderTextColor="#94A3B8"
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+        />
+        {searchQuery.length > 0 && (
+          <TouchableOpacity
+            onPress={() => setSearchQuery('')}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            style={styles.clearSearchBtn}
+          >
+            <Feather name="x" size={16} color={theme.colors.muted} />
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Filter Tabs */}
@@ -181,12 +185,16 @@ export const AdminLeadsScreen: React.FC = () => {
           </TouchableOpacity>
         </ScrollView>
       </View>
+    </View>
+  );
 
-      {/* Leads List */}
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
+  return (
+    <View style={styles.container}>
+      <Screen
+        scroll={true}
+        hasTabBar={true}
+        header={headerNode}
+        contentContainerStyle={{ paddingBottom: floatingBottom + 64 }}
       >
         {loading ? (
           <View style={styles.loadingBox}>
@@ -258,10 +266,10 @@ export const AdminLeadsScreen: React.FC = () => {
             );
           })
         )}
-      </ScrollView>
+      </Screen>
 
       {/* Floating Add Lead Button */}
-      <View style={styles.bottomBar}>
+      <View style={[styles.bottomBar, { bottom: floatingBottom }]}>
         <TouchableOpacity
           style={styles.addLeadBtn}
           onPress={() => navigation.navigate('AddLead')}
@@ -281,20 +289,16 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.background,
   },
   header: {
-    paddingHorizontal: theme.spacing.md,
-    paddingTop: Platform.OS === 'ios' ? 52 : 24,
-    paddingBottom: 12,
-    backgroundColor: theme.colors.card,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.border,
+    paddingVertical: 8,
+    backgroundColor: 'transparent',
   },
   headerTitle: {
     fontFamily: theme.fonts.bold,
-    fontSize: 22,
+    fontSize: 24,
     color: theme.colors.text,
   },
   headerSubtitle: {
-    fontFamily: theme.fonts.medium,
+    fontFamily: theme.fonts.regular,
     fontSize: 13,
     color: theme.colors.muted,
     marginTop: 2,
@@ -303,10 +307,12 @@ const styles = StyleSheet.create({
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F1F5F9',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: theme.colors.border,
     borderRadius: theme.radius.pill,
     paddingHorizontal: 14,
-    height: 42,
+    height: 44,
   },
   searchInput: {
     flex: 1,
@@ -315,25 +321,34 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: theme.colors.text,
   },
+  clearSearchBtn: {
+    minWidth: 44,
+    minHeight: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   filterTabsContainer: {
-    backgroundColor: theme.colors.card,
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.border,
+    backgroundColor: 'transparent',
+    paddingVertical: 8,
   },
   filterTabsScroll: {
-    paddingHorizontal: theme.spacing.md,
     gap: 6,
   },
   filterTab: {
-    paddingVertical: 6,
+    minHeight: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 8,
     paddingHorizontal: 14,
     borderRadius: theme.radius.pill,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: theme.colors.border,
     marginRight: 6,
   },
   filterTabActive: {
     backgroundColor: theme.colors.black,
+    borderColor: theme.colors.black,
   },
   filterTabText: {
     fontFamily: theme.fonts.medium,
@@ -444,9 +459,9 @@ const styles = StyleSheet.create({
   },
   bottomBar: {
     position: 'absolute',
-    bottom: 80,
-    left: theme.spacing.md,
-    right: theme.spacing.md,
+    left: 20,
+    right: 20,
+    zIndex: 50,
   },
   addLeadBtn: {
     flexDirection: 'row',
@@ -455,6 +470,7 @@ const styles = StyleSheet.create({
     gap: 8,
     backgroundColor: theme.colors.black,
     borderRadius: theme.radius.pill,
+    minHeight: 48,
     paddingVertical: 14,
     ...theme.shadows.elevated,
   },

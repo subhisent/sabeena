@@ -14,15 +14,17 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Feather } from '@expo/vector-icons';
 
 import { theme } from '../../theme';
-import { useMyLeads } from '../../hooks';
+import { useMyLeads, useFloatingButtonBottom } from '../../hooks';
 import { Lead, LeadStatus } from '../../types';
-import { SearchBar, FAB, Avatar } from '../../components';
+import { SearchBar, FAB, Avatar, Screen } from '../../components';
+import { SCREEN_HORIZONTAL_PADDING } from '../../constants';
 
 export type FilterCategory = 'All' | 'New' | 'In Progress' | 'Follow-up' | 'Won' | 'Lost';
 
 export const MyLeadsScreen: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<any>>();
   const { leads, loading, error } = useMyLeads();
+  const floatingBottom = useFloatingButtonBottom(true);
 
   const [search, setSearch] = useState<string>('');
   const [selectedFilter, setSelectedFilter] = useState<FilterCategory>('All');
@@ -183,8 +185,8 @@ export const MyLeadsScreen: React.FC = () => {
     );
   }
 
-  return (
-    <View style={styles.container}>
+  const renderHeader = () => (
+    <View style={styles.pinnedHeader}>
       {/* Top Header */}
       <View style={styles.headerRow}>
         <View style={styles.headerTitles}>
@@ -235,6 +237,11 @@ export const MyLeadsScreen: React.FC = () => {
           })}
         </ScrollView>
       </View>
+    </View>
+  );
+
+  return (
+    <Screen hasTabBar scroll={false} header={renderHeader()}>
 
       {/* Loading Skeleton */}
       {loading ? (
@@ -271,7 +278,10 @@ export const MyLeadsScreen: React.FC = () => {
         <FlatList
           data={filteredLeads}
           keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={[
+            styles.listContent,
+            { paddingBottom: floatingBottom + 64 },
+          ]}
           showsVerticalScrollIndicator={false}
           refreshControl={
             <RefreshControl
@@ -337,25 +347,25 @@ export const MyLeadsScreen: React.FC = () => {
 
       {/* Floating Action Button */}
       <FAB
+        floating
+        hasTabBar
         onPress={() => navigation.navigate('AddLead')}
-        style={styles.fabPosition}
       />
-    </View>
+    </Screen>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
+  pinnedHeader: {
     backgroundColor: theme.colors.background,
   },
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: theme.spacing.md,
-    paddingTop: theme.spacing.lg,
-    paddingBottom: theme.spacing.sm,
+    paddingHorizontal: SCREEN_HORIZONTAL_PADDING,
+    paddingTop: 12,
+    paddingBottom: 8,
   },
   headerTitles: {
     flex: 1,
@@ -383,19 +393,22 @@ const styles = StyleSheet.create({
     ...theme.shadows.card,
   },
   searchWrapper: {
-    paddingHorizontal: theme.spacing.md,
+    paddingHorizontal: SCREEN_HORIZONTAL_PADDING,
     marginBottom: theme.spacing.sm,
   },
   filterScrollWrapper: {
-    marginBottom: theme.spacing.md,
+    marginBottom: theme.spacing.sm,
   },
   filterScroll: {
-    paddingHorizontal: theme.spacing.md,
+    paddingHorizontal: SCREEN_HORIZONTAL_PADDING,
     gap: 8,
   },
   filterPill: {
     paddingVertical: 8,
     paddingHorizontal: 16,
+    minHeight: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
     borderRadius: theme.radius.pill,
     borderWidth: 1,
     borderColor: theme.colors.border,
@@ -415,8 +428,8 @@ const styles = StyleSheet.create({
     fontFamily: theme.fonts.semiBold,
   },
   listContent: {
-    paddingHorizontal: theme.spacing.md,
-    paddingBottom: 110,
+    paddingHorizontal: SCREEN_HORIZONTAL_PADDING,
+    paddingTop: 8,
   },
   leadCard: {
     flexDirection: 'row',

@@ -15,7 +15,8 @@ import { collection, onSnapshot } from 'firebase/firestore';
 import { theme } from '../../theme';
 import { db } from '../../services/firebase';
 import { Lead, LeadSource, LeadStatus } from '../../types';
-import { Card } from '../../components';
+import { Card, Screen, ScreenHeader } from '../../components';
+import { SCREEN_HORIZONTAL_PADDING } from '../../constants';
 
 type TimePeriod = 'month' | 'quarter' | 'year';
 
@@ -103,6 +104,34 @@ export const AdminReportsScreen: React.FC = () => {
     };
   }, [filteredLeads, leads]);
 
+  // Prior month calculations for real trend badges
+  const trends = useMemo(() => {
+    const now = new Date();
+    const prevMonth = now.getMonth() === 0 ? 11 : now.getMonth() - 1;
+    const prevYear = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear();
+
+    const priorMonthLeads = leads.filter((l) => {
+      const rawDate: any = l.createdAt || l.receivedDate;
+      const d = typeof rawDate?.toDate === 'function' ? rawDate.toDate() : new Date(rawDate || Date.now());
+      return d.getMonth() === prevMonth && d.getFullYear() === prevYear;
+    });
+
+    const priorTotal = priorMonthLeads.length;
+    const priorWon = priorMonthLeads.filter((l) => l.status === 'Won').length;
+
+    let totalTrend: number | null = null;
+    let wonTrend: number | null = null;
+
+    if (priorTotal > 0 && stats.total > 0) {
+      totalTrend = Math.round(((stats.total - priorTotal) / priorTotal) * 100);
+    }
+    if (priorWon > 0 && stats.won > 0) {
+      wonTrend = Math.round(((stats.won - priorWon) / priorWon) * 100);
+    }
+
+    return { totalTrend, wonTrend };
+  }, [leads, stats]);
+
   // Where leads came from (Distribution by channel)
   const sourceBreakdown = useMemo(() => {
     const data = filteredLeads.length > 0 ? filteredLeads : leads;
@@ -145,94 +174,104 @@ export const AdminReportsScreen: React.FC = () => {
   }, [sourceBreakdown, stats]);
 
   return (
-    <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-          <Feather name="arrow-left" size={22} color={theme.colors.text} />
+    <Screen
+      hasTabBar={false}
+      scroll
+      contentContainerStyle={styles.scrollContent}
+      header={
+        <ScreenHeader
+          title="Analytics & Reports"
+          subtitle={currentDateStr}
+          onBack={() => navigation.goBack()}
+        />
+      }
+    >
+      {/* Period Selector Tabs */}
+      <View style={styles.periodRow}>
+        <TouchableOpacity
+          style={[styles.periodTab, period === 'month' && styles.periodTabActive]}
+          onPress={() => setPeriod('month')}
+          activeOpacity={0.85}
+        >
+          <Text style={[styles.periodTabText, period === 'month' && styles.periodTabTextActive]}>
+            This month
+          </Text>
         </TouchableOpacity>
-        <View style={styles.headerCenter}>
-          <Text style={styles.headerTitle}>Analytics & Reports</Text>
-          <Text style={styles.headerSubtitle}>{currentDateStr}</Text>
-        </View>
-        <View style={styles.headerRight} />
+
+        <TouchableOpacity
+          style={[styles.periodTab, period === 'quarter' && styles.periodTabActive]}
+          onPress={() => setPeriod('quarter')}
+          activeOpacity={0.85}
+        >
+          <Text style={[styles.periodTabText, period === 'quarter' && styles.periodTabTextActive]}>
+            Quarter
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.periodTab, period === 'year' && styles.periodTabActive]}
+          onPress={() => setPeriod('year')}
+          activeOpacity={0.85}
+        >
+          <Text style={[styles.periodTabText, period === 'year' && styles.periodTabTextActive]}>
+            Year
+          </Text>
+        </TouchableOpacity>
       </View>
 
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Period Selector Tabs */}
-        <View style={styles.periodRow}>
-          <TouchableOpacity
-            style={[styles.periodTab, period === 'month' && styles.periodTabActive]}
-            onPress={() => setPeriod('month')}
-            activeOpacity={0.85}
-          >
-            <Text style={[styles.periodTabText, period === 'month' && styles.periodTabTextActive]}>
-              This month
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.periodTab, period === 'quarter' && styles.periodTabActive]}
-            onPress={() => setPeriod('quarter')}
-            activeOpacity={0.85}
-          >
-            <Text style={[styles.periodTabText, period === 'quarter' && styles.periodTabTextActive]}>
-              Quarter
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.periodTab, period === 'year' && styles.periodTabActive]}
-            onPress={() => setPeriod('year')}
-            activeOpacity={0.85}
-          >
-            <Text style={[styles.periodTabText, period === 'year' && styles.periodTabTextActive]}>
-              Year
-            </Text>
-          </TouchableOpacity>
+      {loading ? (
+        <View style={styles.loadingBox}>
+          <ActivityIndicator size="large" color={theme.colors.primary} />
         </View>
-
-        {loading ? (
-          <View style={styles.loadingBox}>
-            <ActivityIndicator size="large" color={theme.colors.primary} />
-          </View>
-        ) : (
-          <>
-            {/* 4 STAT CARDS GRID */}
-            <View style={styles.statsGrid}>
-              {/* Card 1: Total Leads */}
-              <Card style={styles.statCard} padding="md">
-                <View style={styles.statIconRow}>
-                  <View style={[styles.statIconBox, { backgroundColor: '#EFF6FF' }]}>
-                    <Feather name="layers" size={16} color={theme.colors.primary} />
-                  </View>
-                  <View style={styles.trendBadgePositive}>
-                    <Feather name="trending-up" size={10} color="#16A34A" />
-                    <Text style={styles.trendTextPositive}>+12%</Text>
-                  </View>
+      ) : (
+        <>
+          {/* 4 STAT CARDS GRID */}
+          <View style={styles.statsGrid}>
+            {/* Card 1: Total Leads */}
+            <Card style={styles.statCard} padding="md">
+              <View style={styles.statIconRow}>
+                <View style={[styles.statIconBox, { backgroundColor: '#EFF6FF' }]}>
+                  <Feather name="layers" size={16} color={theme.colors.primary} />
                 </View>
-                <Text style={styles.statValue}>{stats.total}</Text>
-                <Text style={styles.statLabel}>Total Leads</Text>
-              </Card>
+                {trends.totalTrend !== null && (
+                  <View style={trends.totalTrend >= 0 ? styles.trendBadgePositive : styles.trendBadgeNegative}>
+                    <Feather
+                      name={trends.totalTrend >= 0 ? 'trending-up' : 'trending-down'}
+                      size={10}
+                      color={trends.totalTrend >= 0 ? '#16A34A' : '#DC2626'}
+                    />
+                    <Text style={trends.totalTrend >= 0 ? styles.trendTextPositive : styles.trendTextNegative}>
+                      {trends.totalTrend >= 0 ? `+${trends.totalTrend}%` : `${trends.totalTrend}%`}
+                    </Text>
+                  </View>
+                )}
+              </View>
+              <Text style={styles.statValue}>{stats.total}</Text>
+              <Text style={styles.statLabel}>Total Leads</Text>
+            </Card>
 
-              {/* Card 2: Leads Won */}
-              <Card style={styles.statCard} padding="md">
-                <View style={styles.statIconRow}>
-                  <View style={[styles.statIconBox, { backgroundColor: '#DCFCE7' }]}>
-                    <Feather name="check-circle" size={16} color={theme.colors.success} />
-                  </View>
-                  <View style={styles.trendBadgePositive}>
-                    <Feather name="trending-up" size={10} color="#16A34A" />
-                    <Text style={styles.trendTextPositive}>+8%</Text>
-                  </View>
+            {/* Card 2: Leads Won */}
+            <Card style={styles.statCard} padding="md">
+              <View style={styles.statIconRow}>
+                <View style={[styles.statIconBox, { backgroundColor: '#DCFCE7' }]}>
+                  <Feather name="check-circle" size={16} color={theme.colors.success} />
                 </View>
-                <Text style={styles.statValue}>{stats.won}</Text>
-                <Text style={styles.statLabel}>Leads Won</Text>
-              </Card>
+                {trends.wonTrend !== null && (
+                  <View style={trends.wonTrend >= 0 ? styles.trendBadgePositive : styles.trendBadgeNegative}>
+                    <Feather
+                      name={trends.wonTrend >= 0 ? 'trending-up' : 'trending-down'}
+                      size={10}
+                      color={trends.wonTrend >= 0 ? '#16A34A' : '#DC2626'}
+                    />
+                    <Text style={trends.wonTrend >= 0 ? styles.trendTextPositive : styles.trendTextNegative}>
+                      {trends.wonTrend >= 0 ? `+${trends.wonTrend}%` : `${trends.wonTrend}%`}
+                    </Text>
+                  </View>
+                )}
+              </View>
+              <Text style={styles.statValue}>{stats.won}</Text>
+              <Text style={styles.statLabel}>Leads Won</Text>
+            </Card>
 
               {/* Card 3: Conversion Rate */}
               <Card style={styles.statCard} padding="md">
@@ -325,53 +364,14 @@ export const AdminReportsScreen: React.FC = () => {
             </Card>
           </>
         )}
-      </ScrollView>
-    </View>
+    </Screen>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: theme.colors.background,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: theme.spacing.md,
-    paddingTop: Platform.OS === 'ios' ? 50 : 20,
-    paddingBottom: 14,
-    backgroundColor: theme.colors.card,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.border,
-  },
-  backBtn: {
-    padding: 6,
-  },
-  headerCenter: {
-    alignItems: 'center',
-  },
-  headerTitle: {
-    fontFamily: theme.fonts.bold,
-    fontSize: 17,
-    color: theme.colors.text,
-  },
-  headerSubtitle: {
-    fontFamily: theme.fonts.medium,
-    fontSize: 12,
-    color: theme.colors.muted,
-    marginTop: 2,
-  },
-  headerRight: {
-    width: 34,
-  },
-  scrollView: {
-    flex: 1,
-  },
   scrollContent: {
-    padding: theme.spacing.md,
-    paddingBottom: 50,
+    padding: SCREEN_HORIZONTAL_PADDING,
+    paddingBottom: 40,
   },
   periodRow: {
     flexDirection: 'row',
@@ -382,7 +382,9 @@ const styles = StyleSheet.create({
   },
   periodTab: {
     flex: 1,
-    paddingVertical: 8,
+    paddingVertical: 10,
+    minHeight: 44,
+    justifyContent: 'center',
     alignItems: 'center',
     borderRadius: theme.radius.pill,
   },
@@ -438,6 +440,20 @@ const styles = StyleSheet.create({
     fontFamily: theme.fonts.bold,
     fontSize: 10,
     color: '#16A34A',
+  },
+  trendBadgeNegative: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: '#FEE2E2',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: theme.radius.pill,
+  },
+  trendTextNegative: {
+    fontFamily: theme.fonts.bold,
+    fontSize: 10,
+    color: '#DC2626',
   },
   statValue: {
     fontFamily: theme.fonts.bold,

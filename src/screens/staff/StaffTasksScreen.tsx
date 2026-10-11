@@ -15,6 +15,7 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Feather } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   collection,
   query,
@@ -30,8 +31,9 @@ import {
 import { theme } from '../../theme';
 import { db } from '../../services/firebase';
 import { useAuth } from '../../context/AuthContext';
-import { COLLECTIONS } from '../../constants';
-import { EmptyState, FAB, Toast, ToastType } from '../../components';
+import { COLLECTIONS, SCREEN_HORIZONTAL_PADDING } from '../../constants';
+import { EmptyState, FAB, Toast, ToastType, Screen } from '../../components';
+import { useFloatingButtonBottom } from '../../hooks';
 
 export type TaskSegment = 'Today' | 'Overdue' | 'Upcoming';
 
@@ -54,6 +56,8 @@ export interface UnifiedTaskItem {
 export const StaffTasksScreen: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<any>>();
   const { user } = useAuth();
+  const insets = useSafeAreaInsets();
+  const floatingBottom = useFloatingButtonBottom(true);
 
   const [activeSegment, setActiveSegment] = useState<TaskSegment>('Today');
   const [tasks, setTasks] = useState<UnifiedTaskItem[]>([]);
@@ -376,11 +380,109 @@ export const StaffTasksScreen: React.FC = () => {
       ? categorizedTasks.overdue
       : categorizedTasks.upcoming;
 
+  const renderHeader = () => (
+    <View style={styles.pinnedHeader}>
+      {/* Top Header */}
+      <View style={styles.headerRow}>
+        <View style={styles.headerTitles}>
+          <Text style={styles.headerTitle}>Tasks</Text>
+          <Text style={styles.headerSubtitle}>{formattedToday}</Text>
+        </View>
+        <TouchableOpacity
+          style={styles.notificationButton}
+          activeOpacity={0.8}
+          onPress={() => showToast('No new notifications', 'info')}
+        >
+          <Feather name="bell" size={20} color={theme.colors.text} />
+        </TouchableOpacity>
+      </View>
+
+      {/* Route / Daily Summary Card */}
+      <View style={styles.routeCard}>
+        <View style={styles.routeTopRow}>
+          <Text style={styles.routeTitle}>
+            {totalVisitsCount} visits today · {estimatedKm} km
+          </Text>
+          <TouchableOpacity
+            style={styles.startRouteButton}
+            activeOpacity={0.8}
+            onPress={handleStartRoute}
+          >
+            <Text style={styles.startRouteText}>Start route</Text>
+          </TouchableOpacity>
+        </View>
+        <Text style={styles.routeSubtitle}>
+          {loggedVisitsCount} of {totalVisitsCount} visits logged
+        </Text>
+      </View>
+
+      {/* Segmented Filter Control */}
+      <View style={styles.segmentContainer}>
+        <TouchableOpacity
+          style={[
+            styles.segmentItem,
+            activeSegment === 'Today' && styles.segmentItemActive,
+          ]}
+          onPress={() => setActiveSegment('Today')}
+          activeOpacity={0.85}
+        >
+          <Text
+            style={[
+              styles.segmentText,
+              activeSegment === 'Today' && styles.segmentTextActive,
+            ]}
+          >
+            Today {categorizedTasks.today.length}
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[
+            styles.segmentItem,
+            activeSegment === 'Overdue' && styles.segmentItemActive,
+          ]}
+          onPress={() => setActiveSegment('Overdue')}
+          activeOpacity={0.85}
+        >
+          <Text
+            style={[
+              styles.segmentText,
+              activeSegment === 'Overdue' && styles.segmentTextActive,
+            ]}
+          >
+            Overdue {categorizedTasks.overdue.length}
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[
+            styles.segmentItem,
+            activeSegment === 'Upcoming' && styles.segmentItemActive,
+          ]}
+          onPress={() => setActiveSegment('Upcoming')}
+          activeOpacity={0.85}
+        >
+          <Text
+            style={[
+              styles.segmentText,
+              activeSegment === 'Upcoming' && styles.segmentTextActive,
+            ]}
+          >
+            Upcoming {categorizedTasks.upcoming.length}
+          </Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+
   return (
-    <View style={styles.container}>
+    <Screen hasTabBar scroll={false} header={renderHeader()}>
       <ScrollView
         style={styles.scrollView}
-        contentContainerStyle={styles.contentContainer}
+        contentContainerStyle={[
+          styles.contentContainer,
+          { paddingBottom: floatingBottom + 64 },
+        ]}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
@@ -390,96 +492,6 @@ export const StaffTasksScreen: React.FC = () => {
           />
         }
       >
-        {/* Top Header */}
-        <View style={styles.headerRow}>
-          <View style={styles.headerTitles}>
-            <Text style={styles.headerTitle}>Tasks</Text>
-            <Text style={styles.headerSubtitle}>{formattedToday}</Text>
-          </View>
-          <TouchableOpacity
-            style={styles.notificationButton}
-            activeOpacity={0.8}
-            onPress={() => showToast('No new notifications', 'info')}
-          >
-            <Feather name="bell" size={20} color={theme.colors.text} />
-          </TouchableOpacity>
-        </View>
-
-        {/* Route / Daily Summary Card */}
-        <View style={styles.routeCard}>
-          <View style={styles.routeTopRow}>
-            <Text style={styles.routeTitle}>
-              {totalVisitsCount} visits today · {estimatedKm} km
-            </Text>
-            <TouchableOpacity
-              style={styles.startRouteButton}
-              activeOpacity={0.8}
-              onPress={handleStartRoute}
-            >
-              <Text style={styles.startRouteText}>Start route</Text>
-            </TouchableOpacity>
-          </View>
-          <Text style={styles.routeSubtitle}>
-            {loggedVisitsCount} of {totalVisitsCount} visits logged
-          </Text>
-        </View>
-
-        {/* Segmented Filter Control */}
-        <View style={styles.segmentContainer}>
-          <TouchableOpacity
-            style={[
-              styles.segmentItem,
-              activeSegment === 'Today' && styles.segmentItemActive,
-            ]}
-            onPress={() => setActiveSegment('Today')}
-            activeOpacity={0.85}
-          >
-            <Text
-              style={[
-                styles.segmentText,
-                activeSegment === 'Today' && styles.segmentTextActive,
-              ]}
-            >
-              Today {categorizedTasks.today.length}
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              styles.segmentItem,
-              activeSegment === 'Overdue' && styles.segmentItemActive,
-            ]}
-            onPress={() => setActiveSegment('Overdue')}
-            activeOpacity={0.85}
-          >
-            <Text
-              style={[
-                styles.segmentText,
-                activeSegment === 'Overdue' && styles.segmentTextActive,
-              ]}
-            >
-              Overdue {categorizedTasks.overdue.length}
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              styles.segmentItem,
-              activeSegment === 'Upcoming' && styles.segmentItemActive,
-            ]}
-            onPress={() => setActiveSegment('Upcoming')}
-            activeOpacity={0.85}
-          >
-            <Text
-              style={[
-                styles.segmentText,
-                activeSegment === 'Upcoming' && styles.segmentTextActive,
-              ]}
-            >
-              Upcoming {categorizedTasks.upcoming.length}
-            </Text>
-          </TouchableOpacity>
-        </View>
 
         {/* Overdue Attention Sub-Header */}
         {activeSegment === 'Overdue' && (
@@ -610,16 +622,16 @@ export const StaffTasksScreen: React.FC = () => {
           })
         )}
 
-        <View style={styles.bottomSpacer} />
       </ScrollView>
 
       {/* Floating Action Button (FAB) */}
       <FAB
+        floating
+        hasTabBar
         onPress={() => {
           // Open lead or task creation
           showToast('Tap on any task to view details or log visits', 'info');
         }}
-        style={styles.fabPosition}
       />
 
       {/* Quick Log Visit Modal */}
@@ -630,12 +642,13 @@ export const StaffTasksScreen: React.FC = () => {
         onRequestClose={() => setSelectedTaskForLog(null)}
       >
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
+          <View style={[styles.modalContent, { paddingBottom: Math.max(insets.bottom, 16) + 12 }]}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Log Visit</Text>
               <TouchableOpacity
                 onPress={() => setSelectedTaskForLog(null)}
                 style={styles.modalCloseButton}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               >
                 <Feather name="x" size={20} color={theme.colors.text} />
               </TouchableOpacity>
@@ -690,7 +703,7 @@ export const StaffTasksScreen: React.FC = () => {
         type={toast.type}
         onDismiss={() => setToast((prev) => ({ ...prev, visible: false }))}
       />
-    </View>
+    </Screen>
   );
 };
 
@@ -712,16 +725,18 @@ function formatDueShort(d: Date | null): string {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
+  pinnedHeader: {
+    paddingHorizontal: SCREEN_HORIZONTAL_PADDING,
+    paddingTop: 12,
+    paddingBottom: 8,
     backgroundColor: theme.colors.background,
   },
   scrollView: {
     flex: 1,
   },
   contentContainer: {
-    padding: theme.spacing.md,
-    paddingTop: theme.spacing.lg,
+    padding: SCREEN_HORIZONTAL_PADDING,
+    paddingTop: 8,
   },
   headerRow: {
     flexDirection: 'row',
@@ -775,8 +790,11 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   startRouteButton: {
-    paddingVertical: 8,
+    paddingVertical: 10,
     paddingHorizontal: 16,
+    minHeight: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
     borderRadius: theme.radius.pill,
     borderWidth: 1,
     borderColor: theme.colors.borderDark,
@@ -798,11 +816,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#F1F5F9',
     borderRadius: theme.radius.pill,
     padding: 4,
-    marginBottom: theme.spacing.md,
+    marginBottom: 4,
   },
   segmentItem: {
     flex: 1,
     paddingVertical: 10,
+    minHeight: 44,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: theme.radius.pill,
@@ -928,9 +947,6 @@ const styles = StyleSheet.create({
     bottom: 24,
     right: 20,
   },
-  bottomSpacer: {
-    height: 90,
-  },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.45)',
@@ -955,7 +971,10 @@ const styles = StyleSheet.create({
     color: theme.colors.text,
   },
   modalCloseButton: {
-    padding: 4,
+    minWidth: 44,
+    minHeight: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   modalCustomerName: {
     fontFamily: theme.fonts.bold,

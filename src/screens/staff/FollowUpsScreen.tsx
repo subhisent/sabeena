@@ -30,6 +30,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useMyLeads } from '../../hooks';
 import { Lead, LeadPriority } from '../../types';
 import {
+  Screen,
   ScreenHeader,
   Card,
   Chip,
@@ -340,56 +341,59 @@ export const FollowUpsScreen: React.FC = () => {
   };
 
   return (
-    <View style={styles.container}>
+    <Screen
+      hasTabBar={false}
+      scroll={false}
+      header={
+        <View style={styles.headerContainer}>
+          <ScreenHeader
+            title="Follow-ups"
+            subtitle={`${counts.today} today · ${counts.overdue} overdue`}
+            onBack={() => navigation.goBack()}
+          />
+
+          {/* Segmented Control Pills */}
+          <View style={styles.segmentContainer}>
+            {(
+              [
+                { key: 'Today', label: `Today (${counts.today})` },
+                { key: 'Upcoming', label: `Upcoming (${counts.upcoming})` },
+                { key: 'Overdue', label: `Overdue (${counts.overdue})` },
+              ] as const
+            ).map((tab) => {
+              const isSelected = activeSegment === tab.key;
+              return (
+                <TouchableOpacity
+                  key={tab.key}
+                  style={[
+                    styles.segmentPill,
+                    isSelected && styles.segmentPillActive,
+                  ]}
+                  onPress={() => setActiveSegment(tab.key)}
+                  activeOpacity={0.8}
+                >
+                  <Text
+                    style={[
+                      styles.segmentPillText,
+                      isSelected && styles.segmentPillTextActive,
+                    ]}
+                  >
+                    {tab.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </View>
+      }
+    >
       {/* Toast Alert */}
       <Toast
         visible={toast.visible}
         message={toast.message}
         type={toast.type}
         onDismiss={() => setToast((prev) => ({ ...prev, visible: false }))}
-        style={{ top: insets.top + 10 }}
       />
-
-      {/* Header */}
-      <View style={[styles.headerContainer, { paddingTop: insets.top + 12 }]}>
-        <ScreenHeader
-          title="Follow-ups"
-          subtitle={`${counts.today} today · ${counts.overdue} overdue`}
-        />
-
-        {/* Segmented Control Pills */}
-        <View style={styles.segmentContainer}>
-          {(
-            [
-              { key: 'Today', label: `Today (${counts.today})` },
-              { key: 'Upcoming', label: `Upcoming (${counts.upcoming})` },
-              { key: 'Overdue', label: `Overdue (${counts.overdue})` },
-            ] as const
-          ).map((tab) => {
-            const isSelected = activeSegment === tab.key;
-            return (
-              <TouchableOpacity
-                key={tab.key}
-                style={[
-                  styles.segmentPill,
-                  isSelected && styles.segmentPillActive,
-                ]}
-                onPress={() => setActiveSegment(tab.key)}
-                activeOpacity={0.8}
-              >
-                <Text
-                  style={[
-                    styles.segmentPillText,
-                    isSelected && styles.segmentPillTextActive,
-                  ]}
-                >
-                  {tab.label}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-      </View>
 
       {/* List of Grouped Follow-ups */}
       {loading ? (
@@ -530,7 +534,10 @@ export const FollowUpsScreen: React.FC = () => {
           activeOpacity={1}
           onPress={() => setRescheduleLead(null)}
         >
-          <View style={styles.modalSheet} onStartShouldSetResponder={() => true}>
+          <View
+            style={[styles.modalSheet, { paddingBottom: Math.max(insets.bottom, 16) + 16 }]}
+            onStartShouldSetResponder={() => true}
+          >
             <View style={styles.modalGrabber} />
 
             <View style={styles.modalHeaderRow}>
@@ -639,7 +646,7 @@ export const FollowUpsScreen: React.FC = () => {
           </View>
         </TouchableOpacity>
       </Modal>
-    </View>
+    </Screen>
   );
 };
 
@@ -649,7 +656,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.background,
   },
   headerContainer: {
-    paddingHorizontal: theme.spacing.md,
+    paddingHorizontal: 20,
     backgroundColor: theme.colors.background,
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.border,
@@ -664,7 +671,8 @@ const styles = StyleSheet.create({
   },
   segmentPill: {
     flex: 1,
-    paddingVertical: 8,
+    minHeight: 44,
+    paddingVertical: 10,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 20,
@@ -694,7 +702,8 @@ const styles = StyleSheet.create({
     color: theme.colors.muted,
   },
   listContent: {
-    padding: theme.spacing.md,
+    paddingHorizontal: 20,
+    paddingTop: 12,
   },
   dateGroupContainer: {
     marginBottom: 20,
@@ -846,9 +855,9 @@ const styles = StyleSheet.create({
     color: theme.colors.muted,
   },
   modalCloseBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: theme.colors.background,
     alignItems: 'center',
     justifyContent: 'center',
@@ -867,8 +876,10 @@ const styles = StyleSheet.create({
   },
   typeChip: {
     flex: 1,
-    paddingVertical: 8,
+    minHeight: 44,
+    paddingVertical: 10,
     alignItems: 'center',
+    justifyContent: 'center',
     borderRadius: 16,
     backgroundColor: theme.colors.background,
     borderWidth: 1,

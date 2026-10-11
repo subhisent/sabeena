@@ -21,12 +21,14 @@ import {
 
 import { theme } from '../../theme';
 import { db } from '../../services/firebase';
-import { COLLECTIONS } from '../../constants';
+import { COLLECTIONS, SCREEN_HORIZONTAL_PADDING } from '../../constants';
 import { Customer } from '../../types';
-import { Avatar, SearchBar, EmptyState } from '../../components';
+import { Avatar, SearchBar, EmptyState, Screen } from '../../components';
+import { useTabBarHeight } from '../../hooks';
 
 export const ClientsScreen: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<any>>();
+  const tabBarHeight = useTabBarHeight();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
@@ -81,8 +83,8 @@ export const ClientsScreen: React.FC = () => {
     if (cleanPhone) Linking.openURL(`whatsapp://send?phone=${cleanPhone}`);
   };
 
-  return (
-    <View style={styles.container}>
+  const renderHeader = () => (
+    <View style={styles.pinnedHeader}>
       <View style={styles.headerRow}>
         <View style={styles.headerTitles}>
           <Text style={styles.headerTitle}>Clients</Text>
@@ -97,7 +99,11 @@ export const ClientsScreen: React.FC = () => {
           placeholder="Search clients, phone, city..."
         />
       </View>
+    </View>
+  );
 
+  return (
+    <Screen hasTabBar scroll={false} header={renderHeader()}>
       {loading ? (
         <View style={styles.center}>
           <ActivityIndicator size="small" color={theme.colors.text} />
@@ -113,7 +119,7 @@ export const ClientsScreen: React.FC = () => {
         <FlatList
           data={filtered}
           keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={[styles.listContent, { paddingBottom: tabBarHeight + 24 }]}
           showsVerticalScrollIndicator={false}
           refreshControl={
             <RefreshControl
@@ -152,19 +158,18 @@ export const ClientsScreen: React.FC = () => {
           )}
         />
       )}
-    </View>
+    </Screen>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
+  pinnedHeader: {
     backgroundColor: theme.colors.background,
   },
   headerRow: {
-    paddingHorizontal: theme.spacing.md,
-    paddingTop: theme.spacing.lg,
-    paddingBottom: theme.spacing.sm,
+    paddingHorizontal: SCREEN_HORIZONTAL_PADDING,
+    paddingTop: 12,
+    paddingBottom: 8,
   },
   headerTitles: {
     marginBottom: 4,
@@ -181,7 +186,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   searchWrapper: {
-    paddingHorizontal: theme.spacing.md,
+    paddingHorizontal: SCREEN_HORIZONTAL_PADDING,
     marginBottom: theme.spacing.sm,
   },
   center: {
@@ -190,12 +195,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   emptyCard: {
-    marginHorizontal: theme.spacing.md,
+    marginHorizontal: SCREEN_HORIZONTAL_PADDING,
     marginTop: theme.spacing.lg,
   },
   listContent: {
-    paddingHorizontal: theme.spacing.md,
-    paddingBottom: 100,
+    paddingHorizontal: SCREEN_HORIZONTAL_PADDING,
+    paddingTop: 8,
   },
   clientCard: {
     flexDirection: 'row',
@@ -234,9 +239,9 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   actionBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    minWidth: 44,
+    minHeight: 44,
+    borderRadius: 22,
     backgroundColor: theme.colors.background,
     alignItems: 'center',
     justifyContent: 'center',

@@ -178,6 +178,7 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     paddingHorizontal: 14,
     minWidth: 64,
+    minHeight: 44,
   },
   activeTabText: {
     fontFamily: theme.fonts.bold,
@@ -192,6 +193,7 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     paddingHorizontal: 10,
     minWidth: 54,
+    minHeight: 44,
   },
   inactiveTabText: {
     fontFamily: theme.fonts.medium,

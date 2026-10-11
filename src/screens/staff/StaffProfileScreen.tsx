@@ -3,13 +3,13 @@ import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
   TouchableOpacity,
   Modal,
   TextInput,
   ActivityIndicator,
   Alert,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import {
   updatePassword,
@@ -21,9 +21,10 @@ import { theme } from '../../theme';
 import { auth } from '../../services/firebase';
 import { useAuth } from '../../context/AuthContext';
 import { useMyLeads } from '../../hooks';
-import { Avatar, Toast, ToastType } from '../../components';
+import { Avatar, Toast, ToastType, Screen } from '../../components';
 
 export const StaffProfileScreen: React.FC = () => {
+  const insets = useSafeAreaInsets();
   const { user, profile, signOut } = useAuth();
   const { leads } = useMyLeads();
 
@@ -129,107 +130,103 @@ export const StaffProfileScreen: React.FC = () => {
   };
 
   return (
-    <View style={styles.container}>
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Header */}
-        <View style={styles.headerRow}>
-          <View style={styles.headerTitles}>
-            <Text style={styles.headerTitle}>Profile</Text>
-            <Text style={styles.headerSubtitle}>Account & preferences</Text>
-          </View>
-          <TouchableOpacity style={styles.notificationButton} activeOpacity={0.8}>
-            <Feather name="bell" size={20} color={theme.colors.text} />
-          </TouchableOpacity>
+    <Screen
+      hasTabBar
+      scroll
+      contentContainerStyle={styles.content}
+    >
+      {/* Header */}
+      <View style={styles.headerRow}>
+        <View style={styles.headerTitles}>
+          <Text style={styles.headerTitle}>Profile</Text>
+          <Text style={styles.headerSubtitle}>Account & preferences</Text>
+        </View>
+        <TouchableOpacity style={styles.notificationButton} activeOpacity={0.8}>
+          <Feather name="bell" size={20} color={theme.colors.text} />
+        </TouchableOpacity>
+      </View>
+
+      {/* Staff Identity Card */}
+      <View style={styles.identityCard}>
+        <Avatar name={profile?.name || user?.name || 'Arun K'} size="lg" />
+        <View style={styles.identityInfo}>
+          <Text style={styles.staffName}>{profile?.name || user?.name || 'Staff Member'}</Text>
+          <Text style={styles.staffRole}>Senior Sales Representative</Text>
+          <Text style={styles.staffTerritory}>Guindy & Central</Text>
+        </View>
+      </View>
+
+      {/* 3 Metric Cards */}
+      <View style={styles.metricsRow}>
+        <View style={styles.metricCard}>
+          <Text style={styles.metricLabel}>Visited</Text>
+          <Text style={styles.metricValue}>{performance.visitedTodayText}</Text>
+          <Text style={styles.metricSub}>Today</Text>
         </View>
 
-        {/* Staff Identity Card */}
-        <View style={styles.identityCard}>
-          <Avatar name={profile?.name || user?.name || 'Arun K'} size="lg" />
-          <View style={styles.identityInfo}>
-            <Text style={styles.staffName}>{profile?.name || user?.name || 'Staff Member'}</Text>
-            <Text style={styles.staffRole}>Senior Sales Representative</Text>
-            <Text style={styles.staffTerritory}>Guindy & Central</Text>
-          </View>
+        <View style={styles.metricCard}>
+          <Text style={styles.metricLabel}>Leads won</Text>
+          <Text style={styles.metricValue}>{performance.leadsWon}</Text>
+          <Text style={styles.metricSub}>This month</Text>
         </View>
 
-        {/* 3 Metric Cards */}
-        <View style={styles.metricsRow}>
-          <View style={styles.metricCard}>
-            <Text style={styles.metricLabel}>Visited</Text>
-            <Text style={styles.metricValue}>{performance.visitedTodayText}</Text>
-            <Text style={styles.metricSub}>Today</Text>
-          </View>
-
-          <View style={styles.metricCard}>
-            <Text style={styles.metricLabel}>Leads won</Text>
-            <Text style={styles.metricValue}>{performance.leadsWon}</Text>
-            <Text style={styles.metricSub}>This month</Text>
-          </View>
-
-          <View style={styles.metricCard}>
-            <Text style={styles.metricLabel}>Target</Text>
-            <Text style={styles.metricValue}>{performance.targetPercent}</Text>
-            <Text style={styles.metricSub}>{performance.targetSub}</Text>
-          </View>
+        <View style={styles.metricCard}>
+          <Text style={styles.metricLabel}>Target</Text>
+          <Text style={styles.metricValue}>{performance.targetPercent}</Text>
+          <Text style={styles.metricSub}>{performance.targetSub}</Text>
         </View>
+      </View>
 
-        {/* Settings Section */}
-        <Text style={styles.sectionTitle}>Settings</Text>
-        <View style={styles.settingsCard}>
-          <TouchableOpacity
-            style={styles.settingsItem}
-            activeOpacity={0.75}
-            onPress={() => showToast('Push notifications enabled', 'info')}
-          >
-            <Feather name="bell" size={18} color={theme.colors.muted} />
-            <Text style={styles.settingsItemText}>Notifications</Text>
-            <Feather name="chevron-right" size={18} color={theme.colors.muted} />
-          </TouchableOpacity>
+      {/* Settings Section */}
+      <Text style={styles.sectionTitle}>Settings</Text>
+      <View style={styles.settingsCard}>
+        <TouchableOpacity
+          style={styles.settingsItem}
+          activeOpacity={0.75}
+          onPress={() => showToast('Push notifications enabled', 'info')}
+        >
+          <Feather name="bell" size={18} color={theme.colors.muted} />
+          <Text style={styles.settingsItemText}>Notifications</Text>
+          <Feather name="chevron-right" size={18} color={theme.colors.muted} />
+        </TouchableOpacity>
 
-          <View style={styles.divider} />
+        <View style={styles.divider} />
 
-          <TouchableOpacity
-            style={styles.settingsItem}
-            activeOpacity={0.75}
-            onPress={() => setPasswordModalVisible(true)}
-          >
-            <Feather name="lock" size={18} color={theme.colors.muted} />
-            <Text style={styles.settingsItemText}>Change password</Text>
-            <Feather name="chevron-right" size={18} color={theme.colors.muted} />
-          </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.settingsItem}
+          activeOpacity={0.75}
+          onPress={() => setPasswordModalVisible(true)}
+        >
+          <Feather name="lock" size={18} color={theme.colors.muted} />
+          <Text style={styles.settingsItemText}>Change password</Text>
+          <Feather name="chevron-right" size={18} color={theme.colors.muted} />
+        </TouchableOpacity>
 
-          <View style={styles.divider} />
+        <View style={styles.divider} />
 
-          <TouchableOpacity
-            style={styles.settingsItem}
-            activeOpacity={0.75}
-            onPress={() => Alert.alert('Help & Support', 'Contact admin at admin@sabeena.com for help.')}
-          >
-            <Feather name="help-circle" size={18} color={theme.colors.muted} />
-            <Text style={styles.settingsItemText}>Help</Text>
-            <Feather name="chevron-right" size={18} color={theme.colors.muted} />
-          </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.settingsItem}
+          activeOpacity={0.75}
+          onPress={() => Alert.alert('Help & Support', 'Contact admin at admin@sabeena.com for help.')}
+        >
+          <Feather name="help-circle" size={18} color={theme.colors.muted} />
+          <Text style={styles.settingsItemText}>Help</Text>
+          <Feather name="chevron-right" size={18} color={theme.colors.muted} />
+        </TouchableOpacity>
 
-          <View style={styles.divider} />
+        <View style={styles.divider} />
 
-          <TouchableOpacity
-            style={styles.settingsItem}
-            activeOpacity={0.75}
-            onPress={handleSignOut}
-          >
-            <Feather name="log-out" size={18} color={theme.colors.danger} />
-            <Text style={[styles.settingsItemText, { color: theme.colors.danger }]}>
-              Log out
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.bottomSpacer} />
-      </ScrollView>
+        <TouchableOpacity
+          style={styles.settingsItem}
+          activeOpacity={0.75}
+          onPress={handleSignOut}
+        >
+          <Feather name="log-out" size={18} color={theme.colors.danger} />
+          <Text style={[styles.settingsItemText, { color: theme.colors.danger }]}>
+            Log out
+          </Text>
+        </TouchableOpacity>
+      </View>
 
       {/* Change Password Modal */}
       <Modal
@@ -239,10 +236,13 @@ export const StaffProfileScreen: React.FC = () => {
         onRequestClose={() => setPasswordModalVisible(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
+          <View style={[styles.modalContent, { paddingBottom: Math.max(insets.bottom, 16) + 16 }]}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Change password</Text>
-              <TouchableOpacity onPress={() => setPasswordModalVisible(false)}>
+              <TouchableOpacity
+                style={styles.modalCloseBtn}
+                onPress={() => setPasswordModalVisible(false)}
+              >
                 <Feather name="x" size={20} color={theme.colors.text} />
               </TouchableOpacity>
             </View>
@@ -300,7 +300,7 @@ export const StaffProfileScreen: React.FC = () => {
         type={toast.type}
         onDismiss={() => setToast((prev) => ({ ...prev, visible: false }))}
       />
-    </View>
+    </Screen>
   );
 };
 
@@ -313,8 +313,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
-    padding: theme.spacing.md,
-    paddingTop: theme.spacing.lg,
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 24,
   },
   headerRow: {
     flexDirection: 'row',
@@ -440,9 +441,6 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: theme.colors.border,
   },
-  bottomSpacer: {
-    height: 100,
-  },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.45)',
@@ -460,6 +458,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: theme.spacing.md,
+  },
+  modalCloseBtn: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: -8,
   },
   modalTitle: {
     fontFamily: theme.fonts.bold,

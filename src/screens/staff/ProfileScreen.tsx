@@ -23,6 +23,7 @@ import { auth } from '../../services/firebase';
 import { useAuth } from '../../context/AuthContext';
 import { useMyLeads } from '../../hooks';
 import {
+  Screen,
   ScreenHeader,
   Card,
   Avatar,
@@ -186,24 +187,19 @@ export const ProfileScreen: React.FC = () => {
   const staffPhone = user?.phone || '+91 98401 23456';
 
   return (
-    <View style={styles.container}>
+    <Screen
+      hasTabBar
+      scroll
+      contentContainerStyle={styles.scrollContent}
+    >
       <Toast
         visible={toast.visible}
         message={toast.message}
         type={toast.type}
         onDismiss={() => setToast((prev) => ({ ...prev, visible: false }))}
-        style={{ top: insets.top + 10 }}
       />
 
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={[
-          styles.scrollContent,
-          { paddingTop: insets.top + 12, paddingBottom: insets.bottom + 90 },
-        ]}
-        showsVerticalScrollIndicator={false}
-      >
-        <ScreenHeader title="Profile" subtitle="Account details & performance" />
+      <ScreenHeader title="Profile" subtitle="Account details & performance" />
 
         {/* User Identity Card */}
         <Card style={styles.profileCard} padding="lg">
@@ -348,7 +344,6 @@ export const ProfileScreen: React.FC = () => {
         <Text style={styles.versionFooter}>
           Sabena Sealers CRM • Version 1.0.0 (Build 2026)
         </Text>
-      </ScrollView>
 
       {/* Change Password Modal */}
       <Modal
@@ -362,7 +357,10 @@ export const ProfileScreen: React.FC = () => {
           activeOpacity={1}
           onPress={() => setPasswordModalVisible(false)}
         >
-          <View style={styles.modalSheet} onStartShouldSetResponder={() => true}>
+          <View
+            style={[styles.modalSheet, { paddingBottom: Math.max(insets.bottom, 16) + 16 }]}
+            onStartShouldSetResponder={() => true}
+          >
             <View style={styles.modalGrabber} />
 
             <View style={styles.modalHeaderRow}>
@@ -435,7 +433,7 @@ export const ProfileScreen: React.FC = () => {
           </View>
         </TouchableOpacity>
       </Modal>
-    </View>
+    </Screen>
   );
 };
 
@@ -448,7 +446,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 24,
   },
   profileCard: {
     alignItems: 'center',
@@ -671,9 +671,9 @@ const styles = StyleSheet.create({
     color: theme.colors.text,
   },
   modalCloseBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: theme.colors.background,
     alignItems: 'center',
     justifyContent: 'center',

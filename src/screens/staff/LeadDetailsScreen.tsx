@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
   TouchableOpacity,
   ActivityIndicator,
   Linking,
@@ -14,6 +13,7 @@ import {
 } from 'react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import {
   doc,
@@ -34,7 +34,7 @@ import { db } from '../../services/firebase';
 import { useAuth } from '../../context/AuthContext';
 import { Lead, Activity, LeadStatus, LeadPriority, User } from '../../types';
 import { ScheduleFollowUpModal } from './components/ScheduleFollowUpModal';
-import { Toast, ToastType, Avatar, Card } from '../../components';
+import { Toast, ToastType, Avatar, Card, Screen, ScreenHeader } from '../../components';
 
 const STATUS_OPTIONS: LeadStatus[] = ['New Lead', 'In Progress', 'Won', 'Lost'];
 const PRIORITY_OPTIONS: LeadPriority[] = ['Low', 'Medium', 'High', 'Urgent'];
@@ -47,6 +47,7 @@ interface StaffWithStats {
 }
 
 export const LeadDetailsScreen: React.FC = () => {
+  const insets = useSafeAreaInsets();
   const navigation = useNavigation<NativeStackNavigationProp<any>>();
   const route = useRoute<RouteProp<{ params: { leadId: string; customerName?: string } }, 'params'>>();
   const { user, profile, role } = useAuth();
@@ -346,31 +347,77 @@ export const LeadDetailsScreen: React.FC = () => {
   }, [lead]);
 
   return (
-    <View style={styles.container}>
-      {/* Top Bar */}
-      <View style={styles.topBar}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.iconBtn}>
-          <Feather name="arrow-left" size={22} color={theme.colors.text} />
-        </TouchableOpacity>
-        <View style={styles.topBarCenter}>
-          <Text style={styles.topBarTitle}>Lead Details</Text>
-          <Text style={styles.leadIdBadge}>
-            {lead?.id ? `ID: ${lead.id.substring(0, 8).toUpperCase()}` : 'Lead'}
-          </Text>
-        </View>
-        <TouchableOpacity
-          style={styles.iconBtn}
-          onPress={() => setStatusModalVisible(true)}
-        >
-          <Feather name="more-vertical" size={20} color={theme.colors.text} />
-        </TouchableOpacity>
-      </View>
+    <Screen
+      hasTabBar={false}
+      scroll
+      keyboardAware
+      header={
+        <ScreenHeader
+          title="Lead Details"
+          subtitle={lead?.id ? `ID: ${lead.id.substring(0, 8).toUpperCase()}` : 'Lead'}
+          onBack={() => navigation.goBack()}
+          rightElement={
+            <TouchableOpacity
+              style={styles.iconBtn}
+              onPress={() => setStatusModalVisible(true)}
+              activeOpacity={0.7}
+            >
+              <Feather name="more-vertical" size={20} color={theme.colors.text} />
+            </TouchableOpacity>
+          }
+        />
+      }
+      contentContainerStyle={styles.scrollContent}
+      footer={
+        <View style={styles.stickyFooter}>
+          {isAdmin ? (
+            <>
+              <TouchableOpacity
+                style={styles.secondaryBtn}
+                onPress={() => setStatusModalVisible(true)}
+                activeOpacity={0.85}
+              >
+                <Feather name="tag" size={16} color={theme.colors.text} />
+                <Text style={styles.secondaryBtnText}>Update Status</Text>
+              </TouchableOpacity>
 
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
+              <TouchableOpacity
+                style={styles.primaryBtn}
+                onPress={handleOpenReassignModal}
+                activeOpacity={0.85}
+              >
+                <Feather name="user-check" size={16} color={theme.colors.white} />
+                <Text style={styles.primaryBtnText}>Reassign Lead</Text>
+              </TouchableOpacity>
+            </>
+          ) : (
+            <>
+              <TouchableOpacity
+                style={styles.primaryBtn}
+                onPress={() =>
+                  navigation.navigate('LogVisit', {
+                    leadId: lead?.id || leadId,
+                    customerName: lead?.customerName || initialName,
+                    location: lead?.location?.address || 'Chennai',
+                  })
+                }
+                activeOpacity={0.85}
+              >
+                <Text style={styles.primaryBtnText}>Log Visit</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.secondaryBtn}
+                onPress={() => setScheduleModalVisible(true)}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.secondaryBtnText}>Schedule Follow-up</Text>
+              </TouchableOpacity>
+            </>
+          )}
+        </View>
+      }
+    >
         {/* Customer Identity Card */}
         <Card style={styles.identityCard} padding="lg">
           <View style={styles.identityHeader}>
@@ -626,62 +673,10 @@ export const LeadDetailsScreen: React.FC = () => {
           </View>
         </Card>
 
-        <View style={styles.bottomSpacer} />
-      </ScrollView>
-
-      {/* Sticky Bottom Actions */}
-      <View style={styles.stickyFooter}>
-        {isAdmin ? (
-          <>
-            <TouchableOpacity
-              style={styles.secondaryBtn}
-              onPress={() => setStatusModalVisible(true)}
-              activeOpacity={0.85}
-            >
-              <Feather name="tag" size={16} color={theme.colors.text} />
-              <Text style={styles.secondaryBtnText}>Update Status</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.primaryBtn}
-              onPress={handleOpenReassignModal}
-              activeOpacity={0.85}
-            >
-              <Feather name="user-check" size={16} color={theme.colors.white} />
-              <Text style={styles.primaryBtnText}>Reassign Lead</Text>
-            </TouchableOpacity>
-          </>
-        ) : (
-          <>
-            <TouchableOpacity
-              style={styles.primaryBtn}
-              onPress={() =>
-                navigation.navigate('LogVisit', {
-                  leadId: lead?.id || leadId,
-                  customerName: lead?.customerName || initialName,
-                  location: lead?.location?.address || 'Chennai',
-                })
-              }
-              activeOpacity={0.85}
-            >
-              <Text style={styles.primaryBtnText}>Log Visit</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.secondaryBtn}
-              onPress={() => setScheduleModalVisible(true)}
-              activeOpacity={0.85}
-            >
-              <Text style={styles.secondaryBtnText}>Schedule Follow-up</Text>
-            </TouchableOpacity>
-          </>
-        )}
-      </View>
-
       {/* Reassign Lead Modal */}
       <Modal visible={reassignModalVisible} transparent animationType="slide">
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
+          <View style={[styles.modalContent, { paddingBottom: Math.max(insets.bottom, 16) + 16 }]}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Reassign Lead to Staff</Text>
               <TouchableOpacity onPress={() => setReassignModalVisible(false)}>
@@ -823,7 +818,7 @@ export const LeadDetailsScreen: React.FC = () => {
         type={toast.type}
         onDismiss={() => setToast((prev) => ({ ...prev, visible: false }))}
       />
-    </View>
+    </Screen>
   );
 };
 
@@ -855,13 +850,15 @@ const styles = StyleSheet.create({
     color: theme.colors.muted,
   },
   iconBtn: {
-    padding: 6,
-  },
-  scrollView: {
-    flex: 1,
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   scrollContent: {
-    padding: theme.spacing.md,
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 24,
   },
   identityCard: {
     marginBottom: theme.spacing.md,
@@ -1120,21 +1117,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginLeft: 8,
   },
-  bottomSpacer: {
-    height: 90,
-  },
   stickyFooter: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
     backgroundColor: theme.colors.card,
     flexDirection: 'row',
-    padding: theme.spacing.md,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
     gap: 12,
     borderTopWidth: 1,
     borderTopColor: theme.colors.border,
-    ...theme.shadows.elevated,
   },
   primaryBtn: {
     flex: 1,
@@ -1142,6 +1132,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.black,
     borderRadius: theme.radius.pill,
     paddingVertical: 14,
+    minHeight: 48,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
@@ -1159,6 +1150,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.borderDark,
     paddingVertical: 14,
+    minHeight: 48,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,

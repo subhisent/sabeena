@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { collection, onSnapshot } from 'firebase/firestore';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { theme } from '../../theme';
 import { db } from '../../services/firebase';
@@ -23,11 +24,15 @@ import {
   toggleStaffActiveStatus,
   StaffMemberWithMetrics,
 } from '../../services/staffService';
-import { Card, Avatar, Toast, ToastType, EmptyState } from '../../components';
+import { Card, Avatar, Toast, ToastType, EmptyState, Screen } from '../../components';
+import { useFloatingButtonBottom } from '../../hooks';
+import { SCREEN_HORIZONTAL_PADDING } from '../../constants';
 
 type FilterTab = 'all' | 'active' | 'admin' | 'inactive';
 
 export const AdminStaffScreen: React.FC = () => {
+  const insets = useSafeAreaInsets();
+  const floatingBottom = useFloatingButtonBottom(true);
   const [staffList, setStaffList] = useState<StaffMemberWithMetrics[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [selectedFilter, setSelectedFilter] = useState<FilterTab>('all');
@@ -170,8 +175,8 @@ export const AdminStaffScreen: React.FC = () => {
     }
   };
 
-  return (
-    <View style={styles.container}>
+  const renderHeader = () => (
+    <View style={styles.pinnedHeaderContainer}>
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Staff Directory</Text>
@@ -224,11 +229,15 @@ export const AdminStaffScreen: React.FC = () => {
           </TouchableOpacity>
         </ScrollView>
       </View>
+    </View>
+  );
 
+  return (
+    <Screen hasTabBar scroll={false} header={renderHeader()}>
       {/* Staff List */}
       <ScrollView
         style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: floatingBottom + 64 }]}
         showsVerticalScrollIndicator={false}
       >
         {loading ? (
@@ -329,7 +338,7 @@ export const AdminStaffScreen: React.FC = () => {
       </ScrollView>
 
       {/* Floating Add Staff Button */}
-      <View style={styles.bottomBar}>
+      <View style={[styles.bottomBar, { bottom: floatingBottom }]}>
         <TouchableOpacity
           style={styles.addStaffButton}
           onPress={() => setAddModalVisible(true)}
@@ -343,10 +352,14 @@ export const AdminStaffScreen: React.FC = () => {
       {/* Add Staff Modal */}
       <Modal visible={addModalVisible} transparent animationType="slide">
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
+          <View style={[styles.modalContent, { paddingBottom: Math.max(insets.bottom, 16) + 12 }]}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Add New Staff Member</Text>
-              <TouchableOpacity onPress={() => setAddModalVisible(false)}>
+              <TouchableOpacity
+                style={styles.modalCloseBtn}
+                onPress={() => setAddModalVisible(false)}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
                 <Feather name="x" size={22} color={theme.colors.text} />
               </TouchableOpacity>
             </View>
@@ -487,18 +500,17 @@ export const AdminStaffScreen: React.FC = () => {
         type={toast.type}
         onDismiss={() => setToast((prev) => ({ ...prev, visible: false }))}
       />
-    </View>
+    </Screen>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: theme.colors.background,
+  pinnedHeaderContainer: {
+    backgroundColor: theme.colors.card,
   },
   header: {
-    paddingHorizontal: theme.spacing.md,
-    paddingTop: Platform.OS === 'ios' ? 52 : 24,
+    paddingHorizontal: SCREEN_HORIZONTAL_PADDING,
+    paddingTop: 12,
     paddingBottom: 12,
     backgroundColor: theme.colors.card,
     borderBottomWidth: 1,
@@ -522,15 +534,18 @@ const styles = StyleSheet.create({
     borderBottomColor: theme.colors.border,
   },
   filterTabsScroll: {
-    paddingHorizontal: theme.spacing.md,
+    paddingHorizontal: SCREEN_HORIZONTAL_PADDING,
     gap: 8,
   },
   filterTab: {
-    paddingVertical: 6,
+    paddingVertical: 8,
     paddingHorizontal: 14,
     borderRadius: theme.radius.pill,
     backgroundColor: '#F1F5F9',
     marginRight: 6,
+    minHeight: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   filterTabActive: {
     backgroundColor: theme.colors.black,
@@ -667,6 +682,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+    minHeight: 44,
+    paddingVertical: 4,
   },
   contactText: {
     fontFamily: theme.fonts.regular,
@@ -705,9 +722,8 @@ const styles = StyleSheet.create({
   },
   bottomBar: {
     position: 'absolute',
-    bottom: 80,
-    left: theme.spacing.md,
-    right: theme.spacing.md,
+    left: SCREEN_HORIZONTAL_PADDING,
+    right: SCREEN_HORIZONTAL_PADDING,
   },
   addStaffButton: {
     flexDirection: 'row',
@@ -746,6 +762,12 @@ const styles = StyleSheet.create({
     fontFamily: theme.fonts.bold,
     fontSize: 18,
     color: theme.colors.text,
+  },
+  modalCloseBtn: {
+    minWidth: 44,
+    minHeight: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   inputLabel: {
     fontFamily: theme.fonts.medium,

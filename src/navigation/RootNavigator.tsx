@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { View, StyleSheet, Text } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
 import { LoginScreen } from '../screens/auth/LoginScreen';
 import { AdminNavigator } from './AdminNavigator';
@@ -9,6 +10,7 @@ import { AppButton, Card, LoadingView } from '../components';
 
 export const RootNavigator: React.FC = () => {
   const { user, profile, role, loading, accountError, signOut } = useAuth();
+  const insets = useSafeAreaInsets();
 
   useEffect(() => {
     // If authenticated user has an unassigned/invalid role, immediately sign out
@@ -31,7 +33,7 @@ export const RootNavigator: React.FC = () => {
   if (accountError) {
     console.log(`[ROLE-DEBUG] RootNavigator rendering: Error Card (accountError="${accountError}")`);
     return (
-      <View style={styles.fallbackContainer}>
+      <View style={[styles.fallbackContainer, { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 16 }]}>
         <Card style={styles.card} padding="xl">
           <Text style={styles.title}>Account Issue</Text>
           <Text style={styles.message}>{accountError}</Text>
@@ -60,7 +62,7 @@ export const RootNavigator: React.FC = () => {
 
   console.log(`[ROLE-DEBUG] RootNavigator fallback: role is "${role}" (unrecognized) -> rendering fallback`);
   return (
-    <View style={styles.fallbackContainer}>
+    <View style={[styles.fallbackContainer, { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 16 }]}>
       <Card style={styles.card} padding="xl">
         <Text style={styles.title}>Role Unassigned</Text>
         <Text style={styles.message}>

@@ -67,3 +67,5 @@ export const INTERACTION_OUTCOME_LABELS: Record<string, string> = {
   not_interested: 'Not Interested',
   converted: 'Converted (Won)',
 };
+
+export * from './layout';

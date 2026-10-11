@@ -16,6 +16,8 @@ import { theme } from '../../theme';
 import { useAuth } from '../../context/AuthContext';
 import { useMyLeads } from '../../hooks';
 import { Lead } from '../../types';
+import { Screen } from '../../components';
+import { SCREEN_HORIZONTAL_PADDING } from '../../constants';
 
 export const HomeScreen: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<any>>();
@@ -126,28 +128,26 @@ export const HomeScreen: React.FC = () => {
   };
 
   const handleCall = (phone?: string) => {
-    if (phone) Linking.openURL(`tel:${phone}`).catch(() => {});
+    if (!phone) return;
+    Linking.openURL(`tel:${phone}`).catch(() => {});
   };
 
-  return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.content}
-      showsVerticalScrollIndicator={false}
-    >
-      {/* Header */}
-      <View style={styles.headerRow}>
-        <View style={styles.headerTitles}>
-          <Text style={styles.greetingText}>
-            {greeting}, {firstName}
-          </Text>
-          <Text style={styles.dateText}>{formattedDate}</Text>
-        </View>
-        <TouchableOpacity style={styles.notificationButton} activeOpacity={0.8}>
-          <Feather name="bell" size={20} color={theme.colors.text} />
-        </TouchableOpacity>
+  const renderHeader = () => (
+    <View style={styles.headerRow}>
+      <View style={styles.headerTitles}>
+        <Text style={styles.greetingText}>
+          {greeting}, {firstName}
+        </Text>
+        <Text style={styles.dateText}>{formattedDate}</Text>
       </View>
+      <TouchableOpacity style={styles.notificationButton} activeOpacity={0.8}>
+        <Feather name="bell" size={20} color={theme.colors.text} />
+      </TouchableOpacity>
+    </View>
+  );
 
+  return (
+    <Screen hasTabBar scroll header={renderHeader()} contentContainerStyle={styles.content}>
       {/* 2x2 Stats Grid */}
       <View style={styles.statsGrid}>
         <View style={styles.statCard}>
@@ -308,26 +308,24 @@ export const HomeScreen: React.FC = () => {
           <Text style={styles.quickActionLabel}>Clients</Text>
         </TouchableOpacity>
       </View>
-
-      <View style={styles.bottomSpacer} />
-    </ScrollView>
+    </Screen>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: theme.colors.background,
-  },
   content: {
-    padding: theme.spacing.md,
-    paddingTop: theme.spacing.lg,
+    padding: SCREEN_HORIZONTAL_PADDING,
+    paddingTop: 8,
+    paddingBottom: 24,
   },
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: theme.spacing.md,
+    paddingHorizontal: SCREEN_HORIZONTAL_PADDING,
+    paddingTop: 12,
+    paddingBottom: 8,
+    backgroundColor: theme.colors.background,
   },
   headerTitles: {
     flex: 1,
@@ -563,9 +561,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: theme.colors.text,
     textAlign: 'center',
-  },
-  bottomSpacer: {
-    height: 100,
   },
 });
 

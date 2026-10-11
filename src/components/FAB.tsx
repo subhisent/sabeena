@@ -9,12 +9,17 @@ import {
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { theme } from '../theme';
+import { useFloatingButtonBottom } from '../hooks/useTabBarHeight';
+import { MIN_TOUCH_TARGET } from '../constants/layout';
 
 export interface FABProps {
   label?: string;
   iconName?: keyof typeof Feather.glyphMap;
   onPress: () => void;
   style?: StyleProp<ViewStyle>;
+  hasTabBar?: boolean;
+  bottomOffset?: number;
+  floating?: boolean;
 }
 
 export const FAB: React.FC<FABProps> = ({
@@ -22,13 +27,25 @@ export const FAB: React.FC<FABProps> = ({
   iconName = 'plus',
   onPress,
   style,
+  hasTabBar = true,
+  bottomOffset,
+  floating = false,
 }) => {
+  const calculatedBottom = useFloatingButtonBottom(hasTabBar);
+  const bottom = bottomOffset !== undefined ? bottomOffset : calculatedBottom;
   const isRound = !label;
+
   return (
     <TouchableOpacity
       onPress={onPress}
       activeOpacity={0.85}
-      style={[styles.container, isRound && styles.roundContainer, style]}
+      style={[
+        styles.container,
+        isRound && styles.roundContainer,
+        floating && [styles.floatingPosition, { bottom }],
+        style,
+      ]}
+      accessibilityRole="button"
     >
       <View style={[styles.iconCircle, isRound && styles.roundIconCircle]}>
         <Feather name={iconName} size={isRound ? 24 : 18} color={theme.colors.white} />
@@ -44,10 +61,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: theme.colors.black,
     borderRadius: theme.radius.pill,
-    paddingVertical: 10,
-    paddingHorizontal: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    minHeight: MIN_TOUCH_TARGET,
     ...theme.shadows.elevated,
     alignSelf: 'center',
+  },
+  floatingPosition: {
+    position: 'absolute',
+    right: 20,
+    zIndex: 99,
   },
   roundContainer: {
     width: 56,

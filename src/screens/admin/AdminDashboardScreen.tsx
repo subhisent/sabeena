@@ -25,7 +25,8 @@ import { theme } from '../../theme';
 import { db } from '../../services/firebase';
 import { useAuth } from '../../context/AuthContext';
 import { Lead, User } from '../../types';
-import { Card, Avatar, ScreenContainer } from '../../components';
+import { Card, Avatar, Screen } from '../../components';
+import { CONVERSION_TARGET_PERCENT } from '../../constants/layout';
 
 interface StaffWorkload {
   uid: string;
@@ -102,15 +103,51 @@ export const AdminDashboardScreen: React.FC = () => {
     loadData();
   };
 
-  // Compute 4 Stat Cards
+  // Compute 4 Stat Cards with real month-over-month trends
   const stats = useMemo(() => {
     const total = leads.length;
     const won = leads.filter((l) => l.status === 'Won').length;
-    const lost = leads.filter((l) => l.status === 'Lost').length;
-    const closed = won + lost;
     const conversionRate = total > 0 ? ((won / total) * 100).toFixed(1) : '0.0';
 
     const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+    const prevMonth = currentMonth === 0 ? 11 : currentMonth - 1;
+    const prevYear = currentMonth === 0 ? currentYear - 1 : currentYear;
+
+    const leadsThisMonth = leads.filter((l) => {
+      const rawDate: any = l.createdAt || l.receivedDate;
+      const d = typeof rawDate?.toDate === 'function' ? rawDate.toDate() : new Date(rawDate || 0);
+      return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+    });
+
+    const leadsPrevMonth = leads.filter((l) => {
+      const rawDate: any = l.createdAt || l.receivedDate;
+      const d = typeof rawDate?.toDate === 'function' ? rawDate.toDate() : new Date(rawDate || 0);
+      return d.getMonth() === prevMonth && d.getFullYear() === prevYear;
+    });
+
+    const wonThisMonth = leadsThisMonth.filter((l) => l.status === 'Won').length;
+    const wonPrevMonth = leadsPrevMonth.filter((l) => l.status === 'Won').length;
+
+    let totalTrend: { text: string; isPositive: boolean } | null = null;
+    if (leadsPrevMonth.length > 0) {
+      const diff = Math.round(((leadsThisMonth.length - leadsPrevMonth.length) / leadsPrevMonth.length) * 100);
+      totalTrend = {
+        text: `${diff >= 0 ? '+' : ''}${diff}%`,
+        isPositive: diff >= 0,
+      };
+    }
+
+    let wonTrend: { text: string; isPositive: boolean } | null = null;
+    if (wonPrevMonth > 0) {
+      const diff = Math.round(((wonThisMonth - wonPrevMonth) / wonPrevMonth) * 100);
+      wonTrend = {
+        text: `${diff >= 0 ? '+' : ''}${diff}%`,
+        isPositive: diff >= 0,
+      };
+    }
+
     const overdue = leads.filter((l) => {
       if (l.status === 'Won' || l.status === 'Lost') return false;
       if (!l.followUpAt) return false;
@@ -123,17 +160,17 @@ export const AdminDashboardScreen: React.FC = () => {
       won,
       conversionRate,
       overdue,
+      totalTrend,
+      wonTrend,
     };
   }, [leads]);
 
-  // Compute Workload by Staff
+  // Compute Workload by Staff - ONLY users with role === 'staff'
   const staffWorkloads = useMemo<StaffWorkload[]>(() => {
     const now = new Date();
-    const maxLeads = Math.max(1, ...staffUsers.map((u) => {
-      return leads.filter((l) => l.assignedTo === u.uid).length;
-    }));
+    const verifiedStaff = staffUsers.filter((u) => u.role === 'staff');
 
-    return staffUsers.map((u) => {
+    return verifiedStaff.map((u) => {
       const userLeads = leads.filter((l) => l.assignedTo === u.uid);
       const open = userLeads.filter((l) => l.status !== 'Won' && l.status !== 'Lost').length;
       const closed = userLeads.filter((l) => l.status === 'Won' || l.status === 'Lost').length;
@@ -163,86 +200,116 @@ export const AdminDashboardScreen: React.FC = () => {
     return staffWorkloads.filter((s) => s.overdueLeads > 0);
   }, [staffWorkloads]);
 
-  return (
-    <View style={styles.container}>
-      {/* Top Header */}
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <Avatar name={profile?.name || 'Admin'} size="md" />
-          <View style={styles.headerInfo}>
-            <View style={styles.badgeRow}>
-              <Text style={styles.greetingText}>Welcome back,</Text>
-              <View style={styles.adminBadge}>
-                <Text style={styles.adminBadgeText}>ADMINISTRATOR</Text>
-              </View>
+  const headerNode = (
+    <View style={styles.header}>
+      <View style={styles.headerLeft}>
+        <Avatar name={profile?.name || 'Admin'} size="md" />
+        <View style={styles.headerInfo}>
+          <View style={styles.badgeRow}>
+            <Text style={styles.greetingText}>Welcome back,</Text>
+            <View style={styles.adminBadge}>
+              <Text style={styles.adminBadgeText}>ADMINISTRATOR</Text>
             </View>
-            <Text style={styles.adminName}>{profile?.name || 'Administrator'}</Text>
-            <Text style={styles.periodText}>{currentMonthStr} Overview</Text>
           </View>
+          <Text style={styles.adminName} numberOfLines={1} ellipsizeMode="tail">
+            {profile?.name || 'Administrator'}
+          </Text>
+          <Text style={styles.periodText}>{currentMonthStr} Overview</Text>
         </View>
-
-        <TouchableOpacity style={styles.logoutBtn} onPress={signOut} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-          <Feather name="log-out" size={18} color={theme.colors.muted} />
-        </TouchableOpacity>
       </View>
 
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.colors.primary} />}
+      <TouchableOpacity
+        style={styles.logoutBtn}
+        onPress={signOut}
+        hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+        accessibilityRole="button"
+        accessibilityLabel="Log out"
       >
-        {loading ? (
-          <View style={styles.loadingBox}>
-            <ActivityIndicator size="large" color={theme.colors.primary} />
-          </View>
-        ) : (
-          <>
-            {/* 4 STAT CARDS GRID */}
-            <View style={styles.statsGrid}>
-              {/* Stat 1: Total Leads */}
-              <Card style={styles.statCard} padding="md">
-                <View style={styles.statIconRow}>
-                  <View style={[styles.statIconBox, { backgroundColor: '#EFF6FF' }]}>
-                    <Feather name="layers" size={16} color={theme.colors.primary} />
-                  </View>
-                  <View style={styles.trendBadgePositive}>
-                    <Feather name="trending-up" size={12} color={theme.colors.success} />
-                    <Text style={styles.trendTextPositive}>+12%</Text>
-                  </View>
-                </View>
-                <Text style={styles.statValue}>{stats.total}</Text>
-                <Text style={styles.statLabel}>Total Leads</Text>
-              </Card>
+        <Feather name="log-out" size={20} color={theme.colors.muted} />
+      </TouchableOpacity>
+    </View>
+  );
 
-              {/* Stat 2: Leads Won */}
-              <Card style={styles.statCard} padding="md">
-                <View style={styles.statIconRow}>
-                  <View style={[styles.statIconBox, { backgroundColor: '#DCFCE7' }]}>
-                    <Feather name="check-circle" size={16} color={theme.colors.success} />
-                  </View>
-                  <View style={styles.trendBadgePositive}>
-                    <Feather name="trending-up" size={12} color={theme.colors.success} />
-                    <Text style={styles.trendTextPositive}>+8%</Text>
-                  </View>
+  return (
+    <Screen
+      scroll={true}
+      hasTabBar={true}
+      header={headerNode}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+          tintColor={theme.colors.primary}
+        />
+      }
+    >
+      {loading ? (
+        <View style={styles.loadingBox}>
+          <ActivityIndicator size="large" color={theme.colors.primary} />
+        </View>
+      ) : (
+        <>
+          {/* 4 STAT CARDS GRID */}
+          <View style={styles.statsGrid}>
+            {/* Stat 1: Total Leads */}
+            <Card style={styles.statCard} padding="md">
+              <View style={styles.statIconRow}>
+                <View style={[styles.statIconBox, { backgroundColor: '#EFF6FF' }]}>
+                  <Feather name="layers" size={16} color={theme.colors.primary} />
                 </View>
-                <Text style={styles.statValue}>{stats.won}</Text>
-                <Text style={styles.statLabel}>Leads Won</Text>
-              </Card>
+                {stats.totalTrend && (
+                  <View style={stats.totalTrend.isPositive ? styles.trendBadgePositive : styles.trendBadgeDanger}>
+                    <Feather
+                      name={stats.totalTrend.isPositive ? 'trending-up' : 'trending-down'}
+                      size={12}
+                      color={stats.totalTrend.isPositive ? theme.colors.success : theme.colors.danger}
+                    />
+                    <Text style={stats.totalTrend.isPositive ? styles.trendTextPositive : styles.trendTextDanger}>
+                      {stats.totalTrend.text}
+                    </Text>
+                  </View>
+                )}
+              </View>
+              <Text style={styles.statValue}>{stats.total}</Text>
+              <Text style={styles.statLabel}>Total Leads</Text>
+            </Card>
 
-              {/* Stat 3: Conversion Rate */}
-              <Card style={styles.statCard} padding="md">
-                <View style={styles.statIconRow}>
-                  <View style={[styles.statIconBox, { backgroundColor: '#F5F3FF' }]}>
-                    <Feather name="pie-chart" size={16} color={theme.colors.purple} />
-                  </View>
-                  <View style={styles.trendBadgeNeutral}>
-                    <Text style={styles.trendTextNeutral}>Target 35%</Text>
-                  </View>
+            {/* Stat 2: Leads Won */}
+            <Card style={styles.statCard} padding="md">
+              <View style={styles.statIconRow}>
+                <View style={[styles.statIconBox, { backgroundColor: '#DCFCE7' }]}>
+                  <Feather name="check-circle" size={16} color={theme.colors.success} />
                 </View>
-                <Text style={styles.statValue}>{stats.conversionRate}%</Text>
-                <Text style={styles.statLabel}>Conversion Rate</Text>
-              </Card>
+                {stats.wonTrend && (
+                  <View style={stats.wonTrend.isPositive ? styles.trendBadgePositive : styles.trendBadgeDanger}>
+                    <Feather
+                      name={stats.wonTrend.isPositive ? 'trending-up' : 'trending-down'}
+                      size={12}
+                      color={stats.wonTrend.isPositive ? theme.colors.success : theme.colors.danger}
+                    />
+                    <Text style={stats.wonTrend.isPositive ? styles.trendTextPositive : styles.trendTextDanger}>
+                      {stats.wonTrend.text}
+                    </Text>
+                  </View>
+                )}
+              </View>
+              <Text style={styles.statValue}>{stats.won}</Text>
+              <Text style={styles.statLabel}>Leads Won</Text>
+            </Card>
+
+            {/* Stat 3: Conversion Rate */}
+            <Card style={styles.statCard} padding="md">
+              <View style={styles.statIconRow}>
+                <View style={[styles.statIconBox, { backgroundColor: '#F5F3FF' }]}>
+                  <Feather name="pie-chart" size={16} color={theme.colors.purple} />
+                </View>
+                <View style={styles.trendBadgeNeutral}>
+                  <Text style={styles.trendTextNeutral}>Target {CONVERSION_TARGET_PERCENT}%</Text>
+                </View>
+              </View>
+              <Text style={styles.statValue}>{stats.conversionRate}%</Text>
+              <Text style={styles.statLabel}>Conversion Rate</Text>
+            </Card>
 
               {/* Stat 4: Overdue Follow-ups */}
               <Card style={styles.statCard} padding="md">
@@ -377,12 +444,9 @@ export const AdminDashboardScreen: React.FC = () => {
                 <Text style={styles.quickActionSub}>Conversion & sources</Text>
               </TouchableOpacity>
             </View>
-
-            <View style={styles.bottomSpacer} />
           </>
         )}
-      </ScrollView>
-    </View>
+    </Screen>
   );
 };
 
@@ -395,10 +459,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: theme.spacing.md,
-    paddingTop: Platform.OS === 'ios' ? 50 : 20,
-    paddingBottom: 14,
-    backgroundColor: theme.colors.card,
+    paddingVertical: 12,
+    backgroundColor: 'transparent',
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.border,
   },
@@ -445,14 +507,17 @@ const styles = StyleSheet.create({
     color: theme.colors.muted,
   },
   logoutBtn: {
-    padding: 8,
+    minWidth: 44,
+    minHeight: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
-    padding: theme.spacing.md,
-    paddingBottom: 100,
+    paddingVertical: 16,
   },
   loadingBox: {
     paddingVertical: 60,
@@ -717,9 +782,6 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: theme.colors.muted,
     marginTop: 2,
-  },
-  bottomSpacer: {
-    height: 80,
   },
 });
 

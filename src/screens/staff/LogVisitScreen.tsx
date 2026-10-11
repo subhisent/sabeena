@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
   TextInput,
   TouchableOpacity,
   ActivityIndicator,
@@ -26,6 +25,7 @@ import { theme } from '../../theme';
 import { db } from '../../services/firebase';
 import { useAuth } from '../../context/AuthContext';
 import { LeadStatus } from '../../types';
+import { Screen, ScreenHeader } from '../../components';
 
 const VISIT_OUTCOMES = [
   'Met customer',
@@ -109,15 +109,42 @@ export const LogVisitScreen: React.FC = () => {
 
   if (savedSuccess) {
     return (
-      <View style={styles.successContainer}>
-        <View style={styles.successTopBar}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.iconBtn}>
-            <Feather name="x" size={22} color={theme.colors.text} />
-          </TouchableOpacity>
-          <Text style={styles.topBarTitle}>Log visit</Text>
-          <View style={styles.iconBtnPlaceholder} />
-        </View>
+      <Screen
+        hasTabBar={false}
+        scroll={false}
+        header={
+          <ScreenHeader
+            title="Log visit"
+            onBack={() => navigation.goBack()}
+          />
+        }
+        footer={
+          <View style={styles.successFooter}>
+            <TouchableOpacity
+              style={styles.backTasksBtn}
+              onPress={() => navigation.goBack()}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.backTasksText}>Back to tasks</Text>
+            </TouchableOpacity>
 
+            {leadId ? (
+              <TouchableOpacity
+                style={styles.viewLeadBtn}
+                onPress={() => {
+                  navigation.replace('LeadDetails', {
+                    leadId,
+                    customerName,
+                  });
+                }}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.viewLeadText}>View lead</Text>
+              </TouchableOpacity>
+            ) : null}
+          </View>
+        }
+      >
         <View style={styles.successContent}>
           <View style={styles.checkCircle}>
             <Feather name="check" size={32} color={theme.colors.success} />
@@ -127,218 +154,193 @@ export const LogVisitScreen: React.FC = () => {
             {customerName} · {selectedOutcome}
           </Text>
         </View>
-
-        <View style={styles.successFooter}>
-          <TouchableOpacity
-            style={styles.backTasksBtn}
-            onPress={() => navigation.goBack()}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.backTasksText}>Back to tasks</Text>
-          </TouchableOpacity>
-
-          {leadId ? (
-            <TouchableOpacity
-              style={styles.viewLeadBtn}
-              onPress={() => {
-                navigation.replace('LeadDetails', {
-                  leadId,
-                  customerName,
-                });
-              }}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.viewLeadText}>View lead</Text>
-            </TouchableOpacity>
-          ) : null}
-        </View>
-      </View>
+      </Screen>
     );
   }
 
   return (
-    <View style={styles.container}>
-      {/* Top Bar */}
-      <View style={styles.topBar}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.iconBtn}>
-          <Feather name="arrow-left" size={22} color={theme.colors.text} />
+    <Screen
+      hasTabBar={false}
+      scroll
+      keyboardAware
+      header={
+        <ScreenHeader
+          title="Log visit"
+          onBack={() => navigation.goBack()}
+          rightElement={
+            <TouchableOpacity style={styles.iconBtn} activeOpacity={0.7}>
+              <Feather name="more-vertical" size={20} color={theme.colors.text} />
+            </TouchableOpacity>
+          }
+        />
+      }
+      contentContainerStyle={styles.scrollContent}
+      footer={
+        <View style={styles.footerContainer}>
+          <TouchableOpacity
+            style={styles.saveButton}
+            onPress={handleSaveVisit}
+            disabled={saving}
+            activeOpacity={0.85}
+          >
+            {saving ? (
+              <ActivityIndicator size="small" color={theme.colors.white} />
+            ) : (
+              <Text style={styles.saveButtonText}>Save visit</Text>
+            )}
+          </TouchableOpacity>
+        </View>
+      }
+    >
+      <Text style={styles.leadNameHeader}>{customerName}</Text>
+
+      {/* Location Section */}
+      <View style={styles.sectionCard}>
+        <Text style={styles.sectionTitle}>Location</Text>
+        <TouchableOpacity
+          style={styles.checkInButton}
+          onPress={handleCheckIn}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.checkInText}>Check in at location</Text>
         </TouchableOpacity>
-        <Text style={styles.topBarTitle}>Log visit</Text>
-        <TouchableOpacity style={styles.iconBtn}>
-          <Feather name="more-vertical" size={20} color={theme.colors.text} />
-        </TouchableOpacity>
+
+        <View style={styles.locationCapturedRow}>
+          <Feather name="map-pin" size={16} color={theme.colors.muted} />
+          <View style={styles.locationCapturedTexts}>
+            <Text style={styles.locationCapturedTitle}>{customerLocation}</Text>
+            <Text style={styles.locationCapturedSubtitle}>{capturedTimeText}</Text>
+          </View>
+        </View>
       </View>
 
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        <Text style={styles.leadNameHeader}>{customerName}</Text>
+      {/* Visit outcome Section */}
+      <View style={styles.sectionCard}>
+        <Text style={styles.sectionTitle}>Visit outcome · Select one</Text>
+        <View style={styles.chipsWrap}>
+          {VISIT_OUTCOMES.map((out) => {
+            const isSel = selectedOutcome === out;
+            return (
+              <TouchableOpacity
+                key={out}
+                style={[styles.outcomeChip, isSel && styles.outcomeChipSelected]}
+                onPress={() => setSelectedOutcome(out)}
+                activeOpacity={0.8}
+              >
+                <Text style={[styles.outcomeChipText, isSel && styles.outcomeChipTextSelected]}>
+                  {out}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      </View>
 
-        {/* Location Section */}
-        <View style={styles.sectionCard}>
-          <Text style={styles.sectionTitle}>Location</Text>
-          <TouchableOpacity
-            style={styles.checkInButton}
-            onPress={handleCheckIn}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.checkInText}>Check in at location</Text>
+      {/* Update status Section */}
+      <View style={styles.sectionCard}>
+        <Text style={styles.sectionTitle}>Update status</Text>
+        <View style={styles.statusRow}>
+          {STATUS_OPTIONS.map((st) => {
+            const isSel = selectedStatus === st;
+            return (
+              <TouchableOpacity
+                key={st}
+                style={[styles.statusOption, isSel && styles.statusOptionSelected]}
+                onPress={() => setSelectedStatus(st)}
+                activeOpacity={0.8}
+              >
+                <Text style={[styles.statusOptionText, isSel && styles.statusOptionTextSelected]}>
+                  {st}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      </View>
+
+      {/* Notes Section */}
+      <View style={styles.sectionCard}>
+        <Text style={styles.sectionTitle}>Notes</Text>
+        <TextInput
+          style={styles.textArea}
+          placeholder="Sample given. Share competitive rate card before the next call."
+          placeholderTextColor={theme.colors.muted}
+          multiline={true}
+          numberOfLines={3}
+          value={notes}
+          onChangeText={setNotes}
+        />
+      </View>
+
+      {/* Add Photo Section */}
+      <View style={styles.sectionCard}>
+        <Text style={styles.sectionTitle}>Add photo</Text>
+        <View style={styles.photoSlotsRow}>
+          <TouchableOpacity style={styles.photoSlot} activeOpacity={0.8}>
+            <Feather name="image" size={20} color={theme.colors.muted} />
           </TouchableOpacity>
+          <TouchableOpacity style={styles.photoSlot} activeOpacity={0.8}>
+            <Feather name="image" size={20} color={theme.colors.muted} />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.photoSlot} activeOpacity={0.8}>
+            <Feather name="image" size={20} color={theme.colors.muted} />
+          </TouchableOpacity>
+        </View>
+        <Text style={styles.photoHint}>Up to 3 photos</Text>
+      </View>
 
-          <View style={styles.locationCapturedRow}>
-            <Feather name="map-pin" size={16} color={theme.colors.muted} />
-            <View style={styles.locationCapturedTexts}>
-              <Text style={styles.locationCapturedTitle}>{customerLocation}</Text>
-              <Text style={styles.locationCapturedSubtitle}>{capturedTimeText}</Text>
+      {/* Next follow-up Section */}
+      <View style={styles.sectionCard}>
+        <Text style={styles.sectionTitle}>Next follow-up</Text>
+
+        {!skipFollowUp && (
+          <>
+            <View style={styles.dateTimeRow}>
+              <View style={styles.dateTimeField}>
+                <Feather name="calendar" size={16} color={theme.colors.muted} />
+                <Text style={styles.dateTimeLabel}>Date</Text>
+                <Text style={styles.dateTimeValue}>In 2 Days</Text>
+              </View>
+
+              <View style={styles.dateTimeField}>
+                <Feather name="clock" size={16} color={theme.colors.muted} />
+                <Text style={styles.dateTimeLabel}>Time</Text>
+                <Text style={styles.dateTimeValue}>11:00 AM</Text>
+              </View>
             </View>
-          </View>
-        </View>
 
-        {/* Visit outcome Section */}
-        <View style={styles.sectionCard}>
-          <Text style={styles.sectionTitle}>Visit outcome · Select one</Text>
-          <View style={styles.chipsWrap}>
-            {VISIT_OUTCOMES.map((out) => {
-              const isSel = selectedOutcome === out;
-              return (
-                <TouchableOpacity
-                  key={out}
-                  style={[styles.outcomeChip, isSel && styles.outcomeChipSelected]}
-                  onPress={() => setSelectedOutcome(out)}
-                  activeOpacity={0.8}
-                >
-                  <Text style={[styles.outcomeChipText, isSel && styles.outcomeChipTextSelected]}>
-                    {out}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        </View>
+            <Text style={styles.subLabel}>Type</Text>
+            <View style={styles.typeRow}>
+              {(['Call', 'Visit', 'Send quote'] as const).map((tp) => {
+                const isSel = followUpType === tp;
+                return (
+                  <TouchableOpacity
+                    key={tp}
+                    style={[styles.typePill, isSel && styles.typePillSelected]}
+                    onPress={() => setFollowUpType(tp)}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={[styles.typeText, isSel && styles.typeTextSelected]}>
+                      {tp}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </>
+        )}
 
-        {/* Update status Section */}
-        <View style={styles.sectionCard}>
-          <Text style={styles.sectionTitle}>Update status</Text>
-          <View style={styles.statusRow}>
-            {STATUS_OPTIONS.map((st) => {
-              const isSel = selectedStatus === st;
-              return (
-                <TouchableOpacity
-                  key={st}
-                  style={[styles.statusOption, isSel && styles.statusOptionSelected]}
-                  onPress={() => setSelectedStatus(st)}
-                  activeOpacity={0.8}
-                >
-                  <Text style={[styles.statusOptionText, isSel && styles.statusOptionTextSelected]}>
-                    {st}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        </View>
-
-        {/* Notes Section */}
-        <View style={styles.sectionCard}>
-          <Text style={styles.sectionTitle}>Notes</Text>
-          <TextInput
-            style={styles.textArea}
-            placeholder="Sample given. Share competitive rate card before the next call."
-            placeholderTextColor={theme.colors.muted}
-            multiline={true}
-            numberOfLines={3}
-            value={notes}
-            onChangeText={setNotes}
+        <View style={styles.skipRow}>
+          <Switch
+            value={skipFollowUp}
+            onValueChange={setSkipFollowUp}
+            trackColor={{ false: '#E2E8F0', true: theme.colors.black }}
+            thumbColor={theme.colors.white}
           />
+          <Text style={styles.skipText}>Skip, no follow-up needed</Text>
         </View>
-
-        {/* Add Photo Section */}
-        <View style={styles.sectionCard}>
-          <Text style={styles.sectionTitle}>Add photo</Text>
-          <View style={styles.photoSlotsRow}>
-            <TouchableOpacity style={styles.photoSlot} activeOpacity={0.8}>
-              <Feather name="image" size={20} color={theme.colors.muted} />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.photoSlot} activeOpacity={0.8}>
-              <Feather name="image" size={20} color={theme.colors.muted} />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.photoSlot} activeOpacity={0.8}>
-              <Feather name="image" size={20} color={theme.colors.muted} />
-            </TouchableOpacity>
-          </View>
-          <Text style={styles.photoHint}>Up to 3 photos</Text>
-        </View>
-
-        {/* Next follow-up Section */}
-        <View style={styles.sectionCard}>
-          <Text style={styles.sectionTitle}>Next follow-up</Text>
-
-          {!skipFollowUp && (
-            <>
-              <View style={styles.dateTimeRow}>
-                <View style={styles.dateTimeField}>
-                  <Feather name="calendar" size={16} color={theme.colors.muted} />
-                  <Text style={styles.dateTimeLabel}>Date</Text>
-                  <Text style={styles.dateTimeValue}>In 2 Days</Text>
-                </View>
-
-                <View style={styles.dateTimeField}>
-                  <Feather name="clock" size={16} color={theme.colors.muted} />
-                  <Text style={styles.dateTimeLabel}>Time</Text>
-                  <Text style={styles.dateTimeValue}>11:00 AM</Text>
-                </View>
-              </View>
-
-              <Text style={styles.subLabel}>Type</Text>
-              <View style={styles.typeRow}>
-                {(['Call', 'Visit', 'Send quote'] as const).map((tp) => {
-                  const isSel = followUpType === tp;
-                  return (
-                    <TouchableOpacity
-                      key={tp}
-                      style={[styles.typePill, isSel && styles.typePillSelected]}
-                      onPress={() => setFollowUpType(tp)}
-                      activeOpacity={0.8}
-                    >
-                      <Text style={[styles.typeText, isSel && styles.typeTextSelected]}>
-                        {tp}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            </>
-          )}
-
-          <View style={styles.skipRow}>
-            <Switch
-              value={skipFollowUp}
-              onValueChange={setSkipFollowUp}
-              trackColor={{ false: '#E2E8F0', true: theme.colors.black }}
-              thumbColor={theme.colors.white}
-            />
-            <Text style={styles.skipText}>Skip, no follow-up needed</Text>
-          </View>
-        </View>
-
-        <TouchableOpacity
-          style={styles.saveButton}
-          onPress={handleSaveVisit}
-          disabled={saving}
-          activeOpacity={0.85}
-        >
-          {saving ? (
-            <ActivityIndicator size="small" color={theme.colors.white} />
-          ) : (
-            <Text style={styles.saveButtonText}>Save visit</Text>
-          )}
-        </TouchableOpacity>
-
-        <View style={styles.bottomSpacer} />
-      </ScrollView>
-    </View>
+      </View>
+    </Screen>
   );
 };
 
@@ -362,16 +364,26 @@ const styles = StyleSheet.create({
     color: theme.colors.text,
   },
   iconBtn: {
-    padding: 6,
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   iconBtnPlaceholder: {
-    width: 32,
-  },
-  scrollView: {
-    flex: 1,
+    width: 44,
   },
   scrollContent: {
-    padding: theme.spacing.md,
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 24,
+  },
+  footerContainer: {
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 12,
+    backgroundColor: theme.colors.background,
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.border,
   },
   leadNameHeader: {
     fontFamily: theme.fonts.bold,
@@ -399,6 +411,7 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.borderDark,
     borderRadius: theme.radius.pill,
     paddingVertical: 12,
+    minHeight: 44,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 12,
@@ -435,12 +448,15 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   outcomeChip: {
-    paddingVertical: 8,
-    paddingHorizontal: 14,
+    minHeight: 44,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
     borderRadius: theme.radius.pill,
     borderWidth: 1,
     borderColor: theme.colors.border,
     backgroundColor: '#F8FAFC',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   outcomeChipSelected: {
     backgroundColor: theme.colors.black,
@@ -462,12 +478,15 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   statusOption: {
-    paddingVertical: 6,
-    paddingHorizontal: 12,
+    minHeight: 44,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
     borderRadius: theme.radius.pill,
     borderWidth: 1,
     borderColor: theme.colors.border,
     backgroundColor: '#F8FAFC',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   statusOptionSelected: {
     backgroundColor: theme.colors.black,
@@ -560,7 +579,8 @@ const styles = StyleSheet.create({
   },
   typePill: {
     flex: 1,
-    paddingVertical: 8,
+    minHeight: 44,
+    paddingVertical: 10,
     borderRadius: theme.radius.pill,
     borderWidth: 1,
     borderColor: theme.colors.border,
@@ -586,6 +606,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 10,
     marginTop: 4,
+    minHeight: 44,
   },
   skipText: {
     fontFamily: theme.fonts.medium,
@@ -595,19 +616,16 @@ const styles = StyleSheet.create({
   saveButton: {
     backgroundColor: theme.colors.black,
     borderRadius: theme.radius.pill,
-    paddingVertical: 16,
+    paddingVertical: 14,
+    minHeight: 48,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: theme.spacing.sm,
     ...theme.shadows.card,
   },
   saveButtonText: {
     fontFamily: theme.fonts.semiBold,
     fontSize: 16,
     color: theme.colors.white,
-  },
-  bottomSpacer: {
-    height: 40,
   },
   // Success state
   successContainer: {

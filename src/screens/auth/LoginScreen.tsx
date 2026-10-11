@@ -13,7 +13,7 @@ import {
 import { Feather } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import { theme } from '../../theme';
-import { Card } from '../../components';
+import { Card, Screen } from '../../components';
 
 export const LoginScreen: React.FC = () => {
   const { signIn } = useAuth();
@@ -73,16 +73,13 @@ export const LoginScreen: React.FC = () => {
   };
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={styles.container}
+    <Screen
+      scroll={true}
+      keyboardAware={true}
+      hasTabBar={false}
+      contentContainerStyle={styles.scrollContent}
     >
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-      >
-        {/* Top Header Illustration Badge */}
+      {/* Top Header Illustration Badge */}
         <View style={styles.illustrationWrapper}>
           <View style={styles.illustrationCircle}>
             <Feather
@@ -237,8 +234,7 @@ export const LoginScreen: React.FC = () => {
             Sabena Sealers Sales CRM • Enterprise 256-bit AES
           </Text>
         </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+    </Screen>
   );
 };
 
@@ -250,8 +246,7 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     justifyContent: 'center',
-    paddingHorizontal: theme.spacing.lg,
-    paddingVertical: theme.spacing.xl,
+    paddingVertical: 16,
   },
   illustrationWrapper: {
     alignItems: 'center',
@@ -332,12 +327,15 @@ const styles = StyleSheet.create({
     color: theme.colors.text,
   },
   eyeBtn: {
-    padding: 4,
+    minWidth: 44,
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   signInBtn: {
     backgroundColor: theme.colors.black,
     borderRadius: theme.radius.md,
-    paddingVertical: 14,
+    minHeight: 48,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 18,
@@ -414,6 +412,8 @@ const styles = StyleSheet.create({
   toggleBtn: {
     flex: 1,
     paddingVertical: 10,
+    minHeight: 44,
+    justifyContent: 'center',
     alignItems: 'center',
     borderRadius: theme.radius.sm,
   },

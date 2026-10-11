@@ -7,7 +7,6 @@ import {
   TextInput,
   TouchableOpacity,
   ActivityIndicator,
-  KeyboardAvoidingView,
   Platform,
   Modal,
   FlatList,
@@ -16,6 +15,7 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Feather } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   collection,
   query,
@@ -31,7 +31,8 @@ import { theme } from '../../theme';
 import { db } from '../../services/firebase';
 import { useAuth } from '../../context/AuthContext';
 import { LeadSource, LeadPriority, LeadStatus, User } from '../../types';
-import { Card, Avatar, Toast, ToastType } from '../../components';
+import { Card, Avatar, Toast, ToastType, Screen, ScreenHeader } from '../../components';
+import { SCREEN_HORIZONTAL_PADDING } from '../../constants';
 
 const SOURCES: LeadSource[] = ['IndiaMART', 'Walk-in', 'Referral', 'WhatsApp', 'Website'];
 const PRODUCTS_LIST = ['Curtains', 'Blinds', 'Upholstery', 'Wallpapers', 'Mattresses', 'Rods & Tracks'];
@@ -294,32 +295,42 @@ export const AdminAddLeadScreen: React.FC = () => {
     }
   };
 
-  return (
-    <KeyboardAvoidingView
-      style={styles.keyboardContainer}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
-      {/* Top App Bar */}
-      <View style={styles.topBar}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-        >
-          <Feather name="arrow-left" size={22} color={theme.colors.text} />
-        </TouchableOpacity>
-        <View style={styles.topBarCenter}>
-          <Text style={styles.topBarTitle}>New Lead Intake</Text>
-          <Text style={styles.topBarDate}>{currentDateStr}</Text>
-        </View>
-        <View style={styles.topBarRight} />
-      </View>
+  const insets = useSafeAreaInsets();
 
-      <ScrollView
-        style={styles.scrollView}
+  const renderFooter = () => (
+      <View style={styles.footerContainer}>
+        <TouchableOpacity
+          style={[styles.submitButton, saving && styles.submitButtonDisabled]}
+          onPress={handleCreateLead}
+          disabled={saving}
+          activeOpacity={0.9}
+        >
+          {saving ? (
+            <ActivityIndicator size="small" color="#FFFFFF" />
+          ) : (
+            <>
+              <Feather name="plus-circle" size={18} color="#FFFFFF" />
+              <Text style={styles.submitButtonText}>Create & Assign Lead</Text>
+            </>
+          )}
+        </TouchableOpacity>
+      </View>
+    );
+
+    return (
+      <Screen
+        hasTabBar={false}
+        scroll
+        keyboardAware
         contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
+        header={
+          <ScreenHeader
+            title="New Lead Intake"
+            subtitle={currentDateStr}
+            onBack={() => navigation.goBack()}
+          />
+        }
+        footer={renderFooter()}
       >
         {/* CARD 1: Customer & Channel */}
         <Card style={styles.formCard} padding="lg">
@@ -578,31 +589,17 @@ export const AdminAddLeadScreen: React.FC = () => {
           />
         </Card>
 
-        {/* Bottom CTA Button */}
-        <TouchableOpacity
-          style={[styles.submitButton, saving && styles.submitButtonDisabled]}
-          onPress={handleCreateLead}
-          disabled={saving}
-          activeOpacity={0.9}
-        >
-          {saving ? (
-            <ActivityIndicator size="small" color="#FFFFFF" />
-          ) : (
-            <>
-              <Feather name="plus-circle" size={18} color="#FFFFFF" />
-              <Text style={styles.submitButtonText}>Create & Assign Lead</Text>
-            </>
-          )}
-        </TouchableOpacity>
-      </ScrollView>
-
       {/* Sales Rep Selector Modal */}
       <Modal visible={staffModalVisible} transparent animationType="slide">
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
+          <View style={[styles.modalContent, { paddingBottom: Math.max(insets.bottom, 16) + 12 }]}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Select Sales Representative</Text>
-              <TouchableOpacity onPress={() => setStaffModalVisible(false)}>
+              <TouchableOpacity
+                style={styles.modalCloseBtn}
+                onPress={() => setStaffModalVisible(false)}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
                 <Feather name="x" size={22} color={theme.colors.text} />
               </TouchableOpacity>
             </View>
@@ -666,56 +663,21 @@ export const AdminAddLeadScreen: React.FC = () => {
         type={toast.type}
         onDismiss={() => setToast((prev) => ({ ...prev, visible: false }))}
       />
-    </KeyboardAvoidingView>
+    </Screen>
   );
 };
 
 const styles = StyleSheet.create({
-  keyboardContainer: {
-    flex: 1,
-    backgroundColor: theme.colors.background,
-  },
-  topBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: theme.spacing.md,
-    paddingTop: Platform.OS === 'ios' ? 50 : 20,
-    paddingBottom: 16,
+  footerContainer: {
+    paddingHorizontal: SCREEN_HORIZONTAL_PADDING,
+    paddingVertical: 12,
     backgroundColor: theme.colors.card,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.border,
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  topBarCenter: {
-    alignItems: 'center',
-  },
-  topBarTitle: {
-    fontFamily: theme.fonts.bold,
-    fontSize: 17,
-    color: theme.colors.text,
-  },
-  topBarDate: {
-    fontFamily: theme.fonts.medium,
-    fontSize: 12,
-    color: theme.colors.muted,
-    marginTop: 2,
-  },
-  topBarRight: {
-    width: 40,
-  },
-  scrollView: {
-    flex: 1,
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.border,
   },
   scrollContent: {
-    padding: theme.spacing.md,
-    paddingBottom: 40,
+    padding: SCREEN_HORIZONTAL_PADDING,
+    paddingBottom: 24,
   },
   formCard: {
     marginBottom: theme.spacing.md,
@@ -829,6 +791,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'transparent',
     marginRight: 8,
+    minHeight: 44,
+    justifyContent: 'center',
   },
   pillOptionSelected: {
     backgroundColor: theme.colors.black,
@@ -856,6 +820,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#F8FAFC',
     borderWidth: 1,
     borderColor: theme.colors.border,
+    minHeight: 44,
+    justifyContent: 'center',
   },
   chipItemSelected: {
     backgroundColor: '#EFF6FF',
@@ -970,6 +936,12 @@ const styles = StyleSheet.create({
     fontFamily: theme.fonts.bold,
     fontSize: 17,
     color: theme.colors.text,
+  },
+  modalCloseBtn: {
+    minWidth: 44,
+    minHeight: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   modalLoading: {
     paddingVertical: 30,

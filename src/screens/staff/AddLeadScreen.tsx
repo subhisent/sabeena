@@ -3,12 +3,9 @@ import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
   TextInput,
   TouchableOpacity,
   ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -23,7 +20,7 @@ import { theme } from '../../theme';
 import { db } from '../../services/firebase';
 import { useAuth } from '../../context/AuthContext';
 import { LeadPriority, LeadSource } from '../../types';
-import { AppButton } from '../../components';
+import { AppButton, Screen, ScreenHeader } from '../../components';
 
 const SOURCES: LeadSource[] = ['Walk-in', 'Site visit' as any, 'Call' as any, 'Website', 'Referral'];
 const PRIORITIES: LeadPriority[] = ['Low', 'Medium', 'High'];
@@ -106,15 +103,40 @@ export const AddLeadScreen: React.FC = () => {
 
   if (savedLeadId) {
     return (
-      <View style={styles.successContainer}>
-        <View style={styles.successTopBar}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.iconBtn}>
-            <Feather name="x" size={22} color={theme.colors.text} />
-          </TouchableOpacity>
-          <Text style={styles.topBarTitle}>New lead</Text>
-          <View style={styles.iconBtnPlaceholder} />
-        </View>
+      <Screen
+        hasTabBar={false}
+        scroll={false}
+        header={
+          <ScreenHeader
+            title="New lead"
+            onBack={() => navigation.goBack()}
+          />
+        }
+        footer={
+          <View style={styles.successFooter}>
+            <TouchableOpacity
+              style={styles.addAnotherBtn}
+              onPress={handleReset}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.addAnotherText}>Add another</Text>
+            </TouchableOpacity>
 
+            <TouchableOpacity
+              style={styles.viewLeadBtn}
+              onPress={() => {
+                navigation.replace('LeadDetails', {
+                  leadId: savedLeadId,
+                  customerName: customerName,
+                });
+              }}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.viewLeadText}>View lead</Text>
+            </TouchableOpacity>
+          </View>
+        }
+      >
         <View style={styles.successContent}>
           <View style={styles.checkCircle}>
             <Feather name="check" size={32} color={theme.colors.success} />
@@ -124,204 +146,178 @@ export const AddLeadScreen: React.FC = () => {
             {customerName} saved for {user?.name || 'Staff'}.
           </Text>
         </View>
-
-        <View style={styles.successFooter}>
-          <TouchableOpacity
-            style={styles.addAnotherBtn}
-            onPress={handleReset}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.addAnotherText}>Add another</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.viewLeadBtn}
-            onPress={() => {
-              navigation.replace('LeadDetails', {
-                leadId: savedLeadId,
-                customerName: customerName,
-              });
-            }}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.viewLeadText}>View lead</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
+      </Screen>
     );
   }
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    <Screen
+      hasTabBar={false}
+      scroll
+      keyboardAware
+      header={
+        <ScreenHeader
+          title="New lead"
+          onBack={() => navigation.goBack()}
+          rightElement={
+            <TouchableOpacity style={styles.iconBtn} activeOpacity={0.7}>
+              <Feather name="more-vertical" size={20} color={theme.colors.text} />
+            </TouchableOpacity>
+          }
+        />
+      }
+      contentContainerStyle={styles.scrollContent}
+      footer={
+        <View style={styles.footerContainer}>
+          <TouchableOpacity
+            style={styles.saveButton}
+            onPress={handleSave}
+            disabled={saving}
+            activeOpacity={0.85}
+          >
+            {saving ? (
+              <ActivityIndicator size="small" color={theme.colors.white} />
+            ) : (
+              <Text style={styles.saveButtonText}>Save lead</Text>
+            )}
+          </TouchableOpacity>
+        </View>
+      }
     >
-      {/* Top Bar */}
-      <View style={styles.topBar}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.iconBtn}>
-          <Feather name="x" size={22} color={theme.colors.text} />
-        </TouchableOpacity>
-        <Text style={styles.topBarTitle}>New lead</Text>
-        <TouchableOpacity style={styles.iconBtn}>
-          <Feather name="more-vertical" size={20} color={theme.colors.text} />
+      <Text style={styles.requiredNotice}>* Required fields</Text>
+
+      {/* Customer Section */}
+      <View style={styles.sectionCard}>
+        <Text style={styles.sectionTitle}>Customer</Text>
+
+        <Text style={styles.label}>Customer name *</Text>
+        <TextInput
+          style={[styles.input, errors.name && styles.inputError]}
+          placeholder="Enter customer name"
+          placeholderTextColor={theme.colors.muted}
+          value={customerName}
+          onChangeText={(text) => {
+            setCustomerName(text);
+            if (errors.name) setErrors((prev) => ({ ...prev, name: undefined }));
+          }}
+        />
+        {errors.name ? <Text style={styles.errorText}>{errors.name}</Text> : null}
+
+        <Text style={styles.label}>Mobile *</Text>
+        <TextInput
+          style={[styles.input, errors.mobile && styles.inputError]}
+          placeholder="Enter mobile number"
+          placeholderTextColor={theme.colors.muted}
+          keyboardType="phone-pad"
+          value={mobile}
+          onChangeText={(text) => {
+            setMobile(text);
+            if (errors.mobile) setErrors((prev) => ({ ...prev, mobile: undefined }));
+          }}
+        />
+        {errors.mobile ? <Text style={styles.errorText}>{errors.mobile}</Text> : null}
+
+        <Text style={styles.label}>Area / location</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="Enter area / location"
+          placeholderTextColor={theme.colors.muted}
+          value={location}
+          onChangeText={setLocation}
+        />
+
+        <TouchableOpacity
+          style={styles.locationAction}
+          onPress={() => setLocation('Current Location (Chennai)')}
+          activeOpacity={0.8}
+        >
+          <Feather name="map-pin" size={16} color={theme.colors.primary} />
+          <Text style={styles.locationActionText}>Use current location</Text>
         </TouchableOpacity>
       </View>
 
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        <Text style={styles.requiredNotice}>* Required fields</Text>
+      {/* Requirement Section */}
+      <View style={styles.sectionCard}>
+        <Text style={styles.sectionTitle}>Requirement</Text>
 
-        {/* Customer Section */}
-        <View style={styles.sectionCard}>
-          <Text style={styles.sectionTitle}>Customer</Text>
-
-          <Text style={styles.label}>Customer name *</Text>
-          <TextInput
-            style={[styles.input, errors.name && styles.inputError]}
-            placeholder="Enter customer name"
-            placeholderTextColor={theme.colors.muted}
-            value={customerName}
-            onChangeText={(text) => {
-              setCustomerName(text);
-              if (errors.name) setErrors((prev) => ({ ...prev, name: undefined }));
-            }}
-          />
-          {errors.name ? <Text style={styles.errorText}>{errors.name}</Text> : null}
-
-          <Text style={styles.label}>Mobile *</Text>
-          <TextInput
-            style={[styles.input, errors.mobile && styles.inputError]}
-            placeholder="Enter mobile number"
-            placeholderTextColor={theme.colors.muted}
-            keyboardType="phone-pad"
-            value={mobile}
-            onChangeText={(text) => {
-              setMobile(text);
-              if (errors.mobile) setErrors((prev) => ({ ...prev, mobile: undefined }));
-            }}
-          />
-          {errors.mobile ? <Text style={styles.errorText}>{errors.mobile}</Text> : null}
-
-          <Text style={styles.label}>Area / location</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Enter area / location"
-            placeholderTextColor={theme.colors.muted}
-            value={location}
-            onChangeText={setLocation}
-          />
-
-          <TouchableOpacity
-            style={styles.locationAction}
-            onPress={() => setLocation('Current Location (Chennai)')}
-            activeOpacity={0.8}
-          >
-            <Feather name="map-pin" size={16} color={theme.colors.primary} />
-            <Text style={styles.locationActionText}>Use current location</Text>
-          </TouchableOpacity>
+        <Text style={styles.label}>Source</Text>
+        <View style={styles.chipRow}>
+          {SOURCES.map((src) => {
+            const isSelected = selectedSource === src;
+            return (
+              <TouchableOpacity
+                key={src}
+                style={[styles.sourceChip, isSelected && styles.sourceChipSelected]}
+                onPress={() => setSelectedSource(src)}
+                activeOpacity={0.8}
+              >
+                <Text
+                  style={[
+                    styles.sourceChipText,
+                    isSelected && styles.sourceChipTextSelected,
+                  ]}
+                >
+                  {src}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
         </View>
 
-        {/* Requirement Section */}
-        <View style={styles.sectionCard}>
-          <Text style={styles.sectionTitle}>Requirement</Text>
+        <Text style={styles.label}>Product / requirement</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="Enter product / requirement"
+          placeholderTextColor={theme.colors.muted}
+          value={productRequirement}
+          onChangeText={setProductRequirement}
+        />
 
-          <Text style={styles.label}>Source</Text>
-          <View style={styles.chipRow}>
-            {SOURCES.map((src) => {
-              const isSelected = selectedSource === src;
-              return (
-                <TouchableOpacity
-                  key={src}
-                  style={[styles.sourceChip, isSelected && styles.sourceChipSelected]}
-                  onPress={() => setSelectedSource(src)}
-                  activeOpacity={0.8}
+        <Text style={styles.label}>Quantity</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="Enter quantity"
+          placeholderTextColor={theme.colors.muted}
+          value={quantity}
+          onChangeText={setQuantity}
+        />
+
+        <Text style={styles.label}>Priority</Text>
+        <View style={styles.priorityRow}>
+          {PRIORITIES.map((p) => {
+            const isSelected = selectedPriority === p;
+            return (
+              <TouchableOpacity
+                key={p}
+                style={[styles.priorityPill, isSelected && styles.priorityPillSelected]}
+                onPress={() => setSelectedPriority(p)}
+                activeOpacity={0.8}
+              >
+                <Text
+                  style={[
+                    styles.priorityText,
+                    isSelected && styles.priorityTextSelected,
+                  ]}
                 >
-                  <Text
-                    style={[
-                      styles.sourceChipText,
-                      isSelected && styles.sourceChipTextSelected,
-                    ]}
-                  >
-                    {src}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-
-          <Text style={styles.label}>Product / requirement</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Enter product / requirement"
-            placeholderTextColor={theme.colors.muted}
-            value={productRequirement}
-            onChangeText={setProductRequirement}
-          />
-
-          <Text style={styles.label}>Quantity</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Enter quantity"
-            placeholderTextColor={theme.colors.muted}
-            value={quantity}
-            onChangeText={setQuantity}
-          />
-
-          <Text style={styles.label}>Priority</Text>
-          <View style={styles.priorityRow}>
-            {PRIORITIES.map((p) => {
-              const isSelected = selectedPriority === p;
-              return (
-                <TouchableOpacity
-                  key={p}
-                  style={[styles.priorityPill, isSelected && styles.priorityPillSelected]}
-                  onPress={() => setSelectedPriority(p)}
-                  activeOpacity={0.8}
-                >
-                  <Text
-                    style={[
-                      styles.priorityText,
-                      isSelected && styles.priorityTextSelected,
-                    ]}
-                  >
-                    {p}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-
-          <Text style={styles.label}>Remarks</Text>
-          <TextInput
-            style={styles.textArea}
-            placeholder="Add any additional details"
-            placeholderTextColor={theme.colors.muted}
-            multiline={true}
-            numberOfLines={3}
-            value={remarks}
-            onChangeText={setRemarks}
-          />
+                  {p}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
         </View>
 
-        <TouchableOpacity
-          style={styles.saveButton}
-          onPress={handleSave}
-          disabled={saving}
-          activeOpacity={0.85}
-        >
-          {saving ? (
-            <ActivityIndicator size="small" color={theme.colors.white} />
-          ) : (
-            <Text style={styles.saveButtonText}>Save lead</Text>
-          )}
-        </TouchableOpacity>
-
-        <View style={styles.bottomSpacer} />
-      </ScrollView>
-    </KeyboardAvoidingView>
+        <Text style={styles.label}>Remarks</Text>
+        <TextInput
+          style={styles.textArea}
+          placeholder="Add any additional details"
+          placeholderTextColor={theme.colors.muted}
+          multiline={true}
+          numberOfLines={3}
+          value={remarks}
+          onChangeText={setRemarks}
+        />
+      </View>
+    </Screen>
   );
 };
 
@@ -345,16 +341,26 @@ const styles = StyleSheet.create({
     color: theme.colors.text,
   },
   iconBtn: {
-    padding: 6,
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   iconBtnPlaceholder: {
-    width: 32,
-  },
-  scrollView: {
-    flex: 1,
+    width: 44,
   },
   scrollContent: {
-    padding: theme.spacing.md,
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 24,
+  },
+  footerContainer: {
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 12,
+    backgroundColor: theme.colors.background,
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.border,
   },
   requiredNotice: {
     fontFamily: theme.fonts.regular,
@@ -394,6 +400,7 @@ const styles = StyleSheet.create({
     fontFamily: theme.fonts.regular,
     fontSize: 15,
     color: theme.colors.text,
+    minHeight: 48,
   },
   inputError: {
     borderColor: theme.colors.danger,
@@ -411,6 +418,7 @@ const styles = StyleSheet.create({
     gap: 6,
     marginTop: 14,
     marginBottom: 4,
+    minHeight: 44,
   },
   locationActionText: {
     fontFamily: theme.fonts.medium,
@@ -424,12 +432,15 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   sourceChip: {
-    paddingVertical: 8,
+    minHeight: 44,
+    paddingVertical: 10,
     paddingHorizontal: 16,
     borderRadius: theme.radius.pill,
     borderWidth: 1,
     borderColor: theme.colors.border,
     backgroundColor: theme.colors.card,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   sourceChipSelected: {
     backgroundColor: theme.colors.black,
@@ -451,6 +462,7 @@ const styles = StyleSheet.create({
   },
   priorityPill: {
     flex: 1,
+    minHeight: 44,
     paddingVertical: 10,
     borderRadius: theme.radius.pill,
     borderWidth: 1,
@@ -488,19 +500,16 @@ const styles = StyleSheet.create({
   saveButton: {
     backgroundColor: theme.colors.black,
     borderRadius: theme.radius.pill,
-    paddingVertical: 16,
+    paddingVertical: 14,
+    minHeight: 48,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: theme.spacing.sm,
     ...theme.shadows.card,
   },
   saveButtonText: {
     fontFamily: theme.fonts.semiBold,
     fontSize: 16,
     color: theme.colors.white,
-  },
-  bottomSpacer: {
-    height: 40,
   },
   // Success state
   successContainer: {

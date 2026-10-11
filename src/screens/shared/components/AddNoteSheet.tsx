@@ -10,6 +10,7 @@ import {
   Platform,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   doc,
   collection,
@@ -48,6 +49,7 @@ export const AddNoteSheet: React.FC<AddNoteSheetProps> = ({
   onSuccess,
   showToast,
 }) => {
+  const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const [noteText, setNoteText] = useState('');
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
@@ -166,7 +168,7 @@ export const AddNoteSheet: React.FC<AddNoteSheetProps> = ({
           onPress={onClose}
         />
 
-        <View style={styles.sheetContainer}>
+        <View style={[styles.sheetContainer, { paddingBottom: Math.max(insets.bottom, 16) + 12 }]}>
           <View style={styles.grabber} />
 
           {/* Header */}
@@ -308,9 +310,9 @@ const styles = StyleSheet.create({
     color: theme.colors.muted,
   },
   closeBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    minWidth: 44,
+    minHeight: 44,
+    borderRadius: 22,
     backgroundColor: theme.colors.background,
     alignItems: 'center',
     justifyContent: 'center',
